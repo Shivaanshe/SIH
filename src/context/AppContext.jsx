@@ -21,16 +21,8 @@ export function AppProvider({ children }) {
   // 3D Experience Mode: 'bridge' (Hero Bridge), 'constellation' (Skill Galaxy 3D), 'anatomy' (Holographic Clinical)
   const [active3DView, setActive3DView] = useState('bridge');
 
-  // Notifications Toast Stack
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "Ministry of Ayush / AIIA Alignment",
-      message: "AYUSH Domain Pack loaded with 7 core clinical competencies & AIIA guidelines.",
-      type: "emerald",
-      timestamp: "Just now"
-    }
-  ]);
+  // Notifications Toast Stack (Starts empty, auto-dismisses after 4 seconds)
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     localStorage.setItem('kaushal_role', role);
@@ -51,19 +43,30 @@ export function AppProvider({ children }) {
     }
   }, [theme]);
 
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   const addNotification = (title, message, type = 'emerald') => {
+    const id = Date.now() + Math.random();
     const newNote = {
-      id: Date.now(),
+      id,
       title,
       message,
       type,
       timestamp: "Just now"
     };
-    setNotifications(prev => [newNote, ...prev.slice(0, 4)]);
+
+    setNotifications(prev => [newNote, ...prev.slice(0, 2)]);
+
+    // Automatically dismiss after 4 seconds
+    setTimeout(() => {
+      removeNotification(id);
+    }, 4000);
   };
 
-  const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const clearAllNotifications = () => {
+    setNotifications([]);
   };
 
   return (
