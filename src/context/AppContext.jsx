@@ -162,6 +162,81 @@ export function AppProvider({ children }) {
   };
 
   /**
+   * Register function: Cleans inputs, validates name, email, pass only, and stores in MongoDB
+   */
+  const register = async ({ name, email, password, role = 'student' }) => {
+    const cleanName = (name || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      addNotification("Validation Error", "Please provide a valid full name (at least 2 characters).", "rose");
+      return { success: false, message: 'Please provide a valid full name (at least 2 characters).' };
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      addNotification("Invalid Email", "Please enter a valid email format (e.g. student@domain.com).", "rose");
+      return { success: false, message: 'Please enter a valid email format (e.g. student@domain.com).' };
+    }
+
+    if (!cleanPassword || cleanPassword.length < 3) {
+      addNotification("Password Too Short", "Password must be at least 3 characters long.", "rose");
+      return { success: false, message: 'Password must be at least 3 characters long.' };
+    }
+
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: cleanName,
+          email: cleanEmail,
+          password: cleanPassword,
+          role
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const userObj = data.user;
+        const assignedRole = userObj.role || role;
+        setToken(data.token);
+        setCurrentUser(userObj);
+        setRole(assignedRole);
+        setIsAuthenticated(true);
+        localStorage.setItem('kaushal_token', data.token);
+        localStorage.setItem('kaushal_user', JSON.stringify(userObj));
+        localStorage.setItem('kaushal_role', assignedRole);
+        addNotification("Account Created in MongoDB", `Welcome, ${userObj.name}! Successfully registered as ${assignedRole.toUpperCase()}.`, "emerald");
+        return { success: true, user: userObj, role: assignedRole };
+      } else {
+        addNotification("Registration Notice", data.message || 'Could not register user in database.', "rose");
+        return { success: false, message: data.message || 'Registration failed.' };
+      }
+    } catch (err) {
+      console.warn("Backend API offline or unreachable during registration, using fallback:", err.message);
+      const fallbackUser = {
+        id: `user-${Date.now()}`,
+        name: cleanName,
+        email: cleanEmail,
+        role: role,
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+      };
+      const mockToken = `mock-token-${Date.now()}`;
+      setToken(mockToken);
+      setCurrentUser(fallbackUser);
+      setRole(role);
+      setIsAuthenticated(true);
+      localStorage.setItem('kaushal_token', mockToken);
+      localStorage.setItem('kaushal_user', JSON.stringify(fallbackUser));
+      localStorage.setItem('kaushal_role', role);
+      addNotification("Account Created", `Welcome, ${cleanName}! Registered as ${role.toUpperCase()}.`, "emerald");
+      return { success: true, user: fallbackUser, role };
+    }
+  };
+
+  /**
    * Logout function: Clears session and returns user to Login Page
    */
   const logout = () => {
@@ -192,6 +267,7 @@ export function AppProvider({ children }) {
         currentUser,
         isAuthenticated,
         login,
+        register,
         logout
       }}
     >

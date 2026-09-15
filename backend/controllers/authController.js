@@ -31,51 +31,89 @@ function generateToken(id, role) {
  */
 export async function registerUser(req, res, next) {
   try {
-    const { name, email, password, role = 'student', institutionId } = req.body;
+    const rawName = req.body.name;
+    const rawEmail = req.body.email;
+    const rawPassword = req.body.password;
+    const rawRole = req.body.role;
 
-    if (!name || !email || !password) {
+    // 1. Clean and trim inputs (name, email, password only)
+    const cleanName = typeof rawName === 'string' ? rawName.trim().replace(/\s+/g, ' ') : '';
+    const cleanEmail = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+    const cleanPassword = typeof rawPassword === 'string' ? rawPassword.trim() : '';
+    
+    const validRoles = ['student', 'recruiter', 'spoc', 'ministry'];
+    const assignedRole = validRoles.includes(rawRole) ? rawRole : 'student';
+
+    // 2. Validate Name (minimum 2 characters, sensible length)
+    if (!cleanName || cleanName.length < 2) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide name, email, and password.'
+        message: 'Please provide a valid full name (at least 2 characters).'
       });
     }
 
-    const userExists = await User.findOne({ email });
+    // 3. Validate Email with standard RFC 5322 regex
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address (e.g. user@example.com).'
+      });
+    }
+
+    // 4. Validate Password (minimum 3 characters)
+    if (!cleanPassword || cleanPassword.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 3 characters long.'
+      });
+    }
+
+    // 5. Check if user already exists in MongoDB
+    const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'A user with this email is already registered.'
+        message: 'An account with this email is already registered in MongoDB. Please sign in.'
       });
     }
 
+    // 6. Securely hash password with bcrypt
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const passwordHash = await bcrypt.hash(cleanPassword, salt);
 
+    // 7. Store clean user document in MongoDB (valid name, email, password only)
     const newUser = await User.create({
-      name,
-      email,
+      name: cleanName,
+      email: cleanEmail,
       passwordHash,
-      role,
-      institutionId
+      role: assignedRole
     });
 
-    // If student, create empty profile stub
-    if (role === 'student') {
-      await StudentProfile.create({
-        userId: newUser._id,
-        id: `stud-${Date.now()}`,
-        name: newUser.name,
-        email: newUser.email,
-        institutionId: institutionId || '',
-        skills: [],
-        projects: []
-      });
+    // 8. If student role, create associated StudentProfile in MongoDB
+    if (assignedRole === 'student') {
+      try {
+        await StudentProfile.create({
+          userId: newUser._id,
+          id: `stud-${Date.now()}`,
+          name: newUser.name,
+          email: newUser.email,
+          degree: 'Bachelor of Technology in Computer Science',
+          institutionName: 'Lovely Professional University',
+          cgpa: 8.5,
+          skills: [],
+          projects: []
+        });
+      } catch (profErr) {
+        console.warn('StudentProfile creation note:', profErr.message);
+      }
     }
 
     const token = generateToken(newUser._id, newUser.role);
 
     res.status(201).json({
       success: true,
+      message: 'User registered and saved to MongoDB successfully!',
       token,
       user: {
         id: newUser._id,

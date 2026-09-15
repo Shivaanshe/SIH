@@ -14,7 +14,11 @@ import {
   Sparkles,
   Database,
   Layers,
-  Award
+  Award,
+  User,
+  UserPlus,
+  LogIn,
+  RotateCcw
 } from 'lucide-react';
 
 const rolesList = [
@@ -53,19 +57,45 @@ const rolesList = [
 ];
 
 export default function LoginPage() {
-  const { login, domainPack, setDomainPack, addNotification } = useApp();
+  const { login, register, domainPack, setDomainPack, addNotification } = useApp();
   const { dbStatus } = useData();
 
+  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
   const [selectedRole, setSelectedRole] = useState('student');
+
+  // Sign In credentials
   const [email, setEmail] = useState('shiv@123');
   const [password, setPassword] = useState('123');
+
+  // Sign Up fields (valid name, email, pass only)
+  const [signupName, setSignupName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = async (e) => {
+  // Clear fields helper
+  const handleClearSignup = () => {
+    setSignupName('');
+    setSignupEmail('');
+    setSignupPassword('');
+    setErrorMessage('');
+  };
+
+  const handleClearLogin = () => {
+    setEmail('');
+    setPassword('');
+    setErrorMessage('');
+  };
+
+  const handleLoginSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (!email || !password) {
-      setErrorMessage('Please enter both email/ID and password.');
+    const cleanEmail = (email || '').trim();
+    const cleanPass = (password || '').trim();
+
+    if (!cleanEmail || !cleanPass) {
+      setErrorMessage('Please enter both user email/ID and password.');
       return;
     }
 
@@ -73,7 +103,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await login(email, password, selectedRole);
+      const res = await login(cleanEmail, cleanPass, selectedRole);
       if (!res.success) {
         setErrorMessage(res.message || 'Authentication failed. Please verify credentials.');
       }
@@ -84,7 +114,56 @@ export default function LoginPage() {
     }
   };
 
+  const handleSignupSubmit = async (e) => {
+    if (e) e.preventDefault();
+
+    // Strict client-side clearing & validation (name, email, pass only)
+    const cleanName = (signupName || '').trim();
+    const cleanEmail = (signupEmail || '').trim().toLowerCase();
+    const cleanPass = (signupPassword || '').trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      setErrorMessage('Please enter a valid full name (minimum 2 characters).');
+      return;
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setErrorMessage('Please enter a valid email address format (e.g. student@domain.com).');
+      return;
+    }
+
+    if (!cleanPass || cleanPass.length < 3) {
+      setErrorMessage('Password must be at least 3 characters long.');
+      return;
+    }
+
+    setErrorMessage('');
+    setIsLoading(true);
+
+    try {
+      const res = await register({
+        name: cleanName,
+        email: cleanEmail,
+        password: cleanPass,
+        role: selectedRole
+      });
+
+      if (!res.success) {
+        setErrorMessage(res.message || 'Registration failed. Please check inputs.');
+      } else {
+        // Clear signup fields on success
+        handleClearSignup();
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Error creating account. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleQuickPreset = (roleId, presetEmail, presetPass) => {
+    setAuthMode('login');
     setSelectedRole(roleId);
     setEmail(presetEmail);
     setPassword(presetPass);
@@ -269,21 +348,53 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Step 2: Input Credentials */}
-            <form onSubmit={handleSubmit} style={{
+            {/* Step 2: Auth Mode Selector & Credentials Form */}
+            <div style={{
               background: 'rgba(255, 255, 255, 0.02)',
               border: '1px solid rgba(255, 255, 255, 0.06)',
               borderRadius: '12px',
               padding: '24px',
               marginBottom: '24px'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  2. Authenticate with Credentials
-                </span>
-                <span className="glass-pill badge-emerald" style={{ fontSize: '0.7rem' }}>
-                  Default: shiv@123 / 123
-                </span>
+              {/* Tab Selector: Sign In vs Sign Up */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                paddingBottom: '14px',
+                marginBottom: '18px',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode('login'); setErrorMessage(''); }}
+                    className={`btn ${authMode === 'login' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ fontSize: '0.82rem', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <LogIn size={15} /> Sign In to Existing Account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode('signup'); setErrorMessage(''); }}
+                    className={`btn ${authMode === 'signup' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ fontSize: '0.82rem', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <UserPlus size={15} /> Create New Account (Sign Up)
+                  </button>
+                </div>
+
+                {authMode === 'login' ? (
+                  <span className="glass-pill badge-emerald" style={{ fontSize: '0.7rem' }}>
+                    Default: shiv@123 / 123
+                  </span>
+                ) : (
+                  <span className="glass-pill badge-blue" style={{ fontSize: '0.7rem' }}>
+                    Valid Name, Email & Pass Only • MongoDB
+                  </span>
+                )}
               </div>
 
               {errorMessage && (
@@ -293,93 +404,261 @@ export default function LoginPage() {
                   background: 'rgba(244, 63, 94, 0.15)',
                   border: '1px solid rgba(244, 63, 94, 0.4)',
                   color: '#fecdd3',
-                  fontSize: '0.8rem',
-                  marginBottom: '14px'
+                  fontSize: '0.82rem',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
                 }}>
-                  ⚠️ {errorMessage}
+                  <span>⚠️</span>
+                  <span>{errorMessage}</span>
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px', marginBottom: '18px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '6px' }}>
-                    User Email / Institutional ID
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Mail size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input
-                      type="text"
-                      placeholder="e.g. shiv@123"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px 10px 36px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '8px',
-                        color: '#ffffff',
-                        fontSize: '0.88rem',
-                        outline: 'none'
-                      }}
-                      required
-                    />
-                  </div>
-                </div>
+              {/* Form 1: Sign In Mode */}
+              {authMode === 'login' && (
+                <form onSubmit={handleLoginSubmit}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '6px' }}>
+                        User Email / Institutional ID
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Mail size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                          type="text"
+                          placeholder="e.g. shiv@123"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 36px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '8px',
+                            color: '#ffffff',
+                            fontSize: '0.88rem',
+                            outline: 'none'
+                          }}
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '6px' }}>
-                    Password / Access Key
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <KeyRound size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input
-                      type="password"
-                      placeholder="e.g. 123"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px 10px 36px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '8px',
-                        color: '#ffffff',
-                        fontSize: '0.88rem',
-                        outline: 'none'
-                      }}
-                      required
-                    />
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '6px' }}>
+                        Password / Access Key
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <KeyRound size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                          type="password"
+                          placeholder="e.g. 123"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 36px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '8px',
+                            color: '#ffffff',
+                            fontSize: '0.88rem',
+                            outline: 'none'
+                          }}
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn btn-primary"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  fontSize: '0.92rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 0 20px rgba(16, 185, 129, 0.3)'
-                }}
-              >
-                {isLoading ? (
-                  <span>Authenticating...</span>
-                ) : (
-                  <>
-                    <span>Sign In to {rolesList.find(r => r.id === selectedRole)?.title}</span>
-                    <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
-            </form>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="btn btn-primary"
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.3)'
+                      }}
+                    >
+                      {isLoading ? (
+                        <span>Authenticating with MongoDB...</span>
+                      ) : (
+                        <>
+                          <span>Sign In to {rolesList.find(r => r.id === selectedRole)?.title}</span>
+                          <ArrowRight size={16} />
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearLogin}
+                      className="btn btn-secondary"
+                      style={{ padding: '12px 16px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      title="Clear Email and Password fields"
+                    >
+                      <RotateCcw size={14} /> Clear
+                    </button>
+                  </div>
+
+                  <div style={{ textAlign: 'center', marginTop: '14px', fontSize: '0.78rem', color: '#94a3b8' }}>
+                    New to KaushalSetu?{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode('signup'); setErrorMessage(''); }}
+                      style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Create an account now
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Form 2: Sign Up / Register Mode (Name, Email, Password Only) */}
+              {authMode === 'signup' && (
+                <form onSubmit={handleSignupSubmit}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '6px' }}>
+                        Full Name
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <User size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                          type="text"
+                          placeholder="e.g. Shivaansh Tiwari"
+                          value={signupName}
+                          onChange={(e) => setSignupName(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 36px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '8px',
+                            color: '#ffffff',
+                            fontSize: '0.88rem',
+                            outline: 'none'
+                          }}
+                          required
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '6px' }}>
+                        Email Address
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Mail size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                          type="email"
+                          placeholder="e.g. shivaansh@example.com"
+                          value={signupEmail}
+                          onChange={(e) => setSignupEmail(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 36px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '8px',
+                            color: '#ffffff',
+                            fontSize: '0.88rem',
+                            outline: 'none'
+                          }}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '6px' }}>
+                        Password
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <KeyRound size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input
+                          type="password"
+                          placeholder="Min 3 characters..."
+                          value={signupPassword}
+                          onChange={(e) => setSignupPassword(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 36px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '8px',
+                            color: '#ffffff',
+                            fontSize: '0.88rem',
+                            outline: 'none'
+                          }}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="btn btn-primary"
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.3)'
+                      }}
+                    >
+                      {isLoading ? (
+                        <span>Validating & Storing in MongoDB...</span>
+                      ) : (
+                        <>
+                          <UserPlus size={16} />
+                          <span>Register & Enter {rolesList.find(r => r.id === selectedRole)?.title}</span>
+                          <ArrowRight size={16} />
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearSignup}
+                      className="btn btn-secondary"
+                      style={{ padding: '12px 16px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      title="Clear all fields"
+                    >
+                      <RotateCcw size={14} /> Clear Fields
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', fontSize: '0.78rem', color: '#94a3b8' }}>
+                    <div>
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => { setAuthMode('login'); setErrorMessage(''); }}
+                        style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Sign In here
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+            </div>
 
             {/* Step 3: Quick Evaluation 1-Click Buttons */}
             <div>
