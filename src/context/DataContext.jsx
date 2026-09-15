@@ -250,17 +250,18 @@ export function DataProvider({ children }) {
   };
 
   // Update student skills from profile or NLP parser
-  const updateStudentSkills = (studentId, newSkillsList) => {
+  const updateStudentSkills = (studentId, newSkillsList, additionalData = {}) => {
     setStudents(prev => prev.map(s => {
       if (s.id === studentId) {
         return {
           ...s,
-          skills: newSkillsList
+          skills: newSkillsList,
+          ...additionalData
         };
       }
       return s;
     }));
-    addNotification("Profile Updated", "Skill inventory and proficiency levels saved successfully.", "emerald");
+    addNotification("Profile Updated", "Skill inventory and profile details saved successfully.", "emerald");
   };
 
   // Recruiter creates a new posting

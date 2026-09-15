@@ -3,6 +3,7 @@ import Modal from '../common/Modal';
 import { useData } from '../../context/DataContext';
 import { useApp } from '../../context/AppContext';
 import { parseResumeText, sampleAyushResume, sampleTechResume } from '../../engine/nlpResumeParser';
+import { extractTextFromPdf } from '../../utils/pdfExtractor';
 import {
   FileText,
   UploadCloud,
@@ -15,7 +16,13 @@ import {
   FileCheck,
   AlertCircle,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Sliders,
+  CheckSquare,
+  Square,
+  Award,
+  BookOpen
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -34,56 +41,66 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
   const [editableSkills, setEditableSkills] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Quick add custom skill inside modal
+  const [isAddingSkill, setIsAddingSkill] = useState(false);
+  const [customSkillName, setCustomSkillName] = useState('');
+  const [customSkillLevel, setCustomSkillLevel] = useState(4);
+
   if (!isOpen) return null;
 
   // Process file upload (PDF, TXT, DOCX)
-  const handleFileProcess = (file) => {
+  const handleFileProcess = async (file) => {
     if (!file) return;
 
     setUploadedFile({
       name: file.name,
       size: `${(file.size / 1024).toFixed(1)} KB`,
       type: file.type || 'application/pdf',
-      lastModified: new Date(file.lastModified).toLocaleDateString()
+      lastModified: new Date(file.lastModified || Date.now()).toLocaleDateString()
     });
 
     setIsAnalyzing(true);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target.result;
-      let textToParse = typeof content === 'string' ? content : '';
+    try {
+      let extractedText = '';
 
-      // If binary stream, extract readable text chunks
-      if (!textToParse || textToParse.length < 50) {
-        textToParse = domainPack === 'ayush'
-          ? `${sampleAyushResume}\n\n[Parsed from uploaded file: ${file.name}]`
-          : `${sampleTechResume}\n\n[Parsed from uploaded file: ${file.name}]`;
+      if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+        // Real client-side PDF text extraction via pdfjs-dist
+        extractedText = await extractTextFromPdf(file);
+      } else {
+        // Plain text / markdown
+        extractedText = await file.text();
       }
 
-      setResumeText(textToParse);
+      if (!extractedText || extractedText.trim().length === 0) {
+        throw new Error('No readable text streams found in file.');
+      }
 
-      // Run NLP skill extraction
-      setTimeout(() => {
-        const result = parseResumeText(textToParse, domainPack);
-        setParsingResult(result);
-        setEditableSkills(result.extractedSkills.map(s => ({ ...s, isHumanConfirmed: true })));
-        setIsAnalyzing(false);
-        setActiveTab('skills');
-        addNotification("PDF Parsed Successfully", `Extracted ${result.extractedSkills.length} competencies from ${file.name}.`, "emerald");
-      }, 500);
-    };
+      setResumeText(extractedText);
 
-    reader.onerror = () => {
+      // Run NLP entity & skill extraction
+      const result = parseResumeText(extractedText, domainPack);
+      setParsingResult(result);
+      setEditableSkills(result.extractedSkills.map(s => ({ ...s, isHumanConfirmed: true })));
       setIsAnalyzing(false);
-      addNotification("File Read Error", "Could not read file. Using text parser fallback.", "rose");
-    };
+      setActiveTab('skills');
 
-    if (file.type.includes('text') || file.name.endsWith('.txt')) {
-      reader.readAsText(file);
-    } else {
-      // For PDF or DOCX, read text stream
-      reader.readAsText(file);
+      addNotification(
+        "PDF Extracted Successfully",
+        `Discovered ${result.extractedSkills.length} competencies from ${file.name}. Review & calibrate below.`,
+        "emerald"
+      );
+    } catch (err) {
+      console.error("PDF extraction error:", err);
+      setIsAnalyzing(false);
+
+      // Graceful fallback with notification
+      addNotification(
+        "PDF Reading Notice",
+        "Could not decode text streams directly. You can inspect or edit text in the Document Preview tab.",
+        "amber"
+      );
+      setActiveTab('preview');
     }
   };
 
@@ -107,8 +124,12 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
       setEditableSkills(result.extractedSkills.map(s => ({ ...s, isHumanConfirmed: true })));
       setIsAnalyzing(false);
       setActiveTab('skills');
-      addNotification("NLP Extraction Complete", `Extracted ${result.extractedSkills.length} competencies from CV.`, "emerald");
-    }, 500);
+      addNotification(
+        "NLP Extraction Complete",
+        `Extracted ${result.extractedSkills.length} competencies from document text.`,
+        "emerald"
+      );
+    }, 400);
   };
 
   const handleLevelChange = (skillId, newLevel) => {
@@ -125,6 +146,43 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
     }));
   };
 
+  const toggleSelectAll = () => {
+    const allSelected = editableSkills.every(s => s.isHumanConfirmed);
+    setEditableSkills(prev => prev.map(s => ({ ...s, isHumanConfirmed: !allSelected })));
+  };
+
+  const handleRemoveSkill = (skillId) => {
+    setEditableSkills(prev => prev.filter(s => s.skillId !== skillId));
+  };
+
+  const handleAddCustomSkill = (e) => {
+    e.preventDefault();
+    if (!customSkillName.trim()) return;
+
+    const trimmed = customSkillName.trim();
+    const alreadyExists = editableSkills.some(s => s.name.toLowerCase() === trimmed.toLowerCase());
+    if (alreadyExists) {
+      addNotification("Skill already listed", `"${trimmed}" is already in your extraction list.`, "amber");
+      return;
+    }
+
+    const newSkill = {
+      skillId: `custom-res-${Date.now()}`,
+      name: trimmed,
+      matchedPhrase: "Manual Entry",
+      confidence: 100,
+      level: Number(customSkillLevel),
+      category: "Candidate Competency",
+      verified: false,
+      isHumanConfirmed: true
+    };
+
+    setEditableSkills(prev => [newSkill, ...prev]);
+    setCustomSkillName('');
+    setIsAddingSkill(false);
+    addNotification("Competency Added", `Added "${trimmed}" to confirmed skills.`, "emerald");
+  };
+
   const handleCommit = () => {
     const confirmedSkills = editableSkills
       .filter(s => s.isHumanConfirmed)
@@ -135,28 +193,47 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
         verified: false
       }));
 
+    if (confirmedSkills.length === 0) {
+      addNotification("No Skills Selected", "Please check at least one skill to save to your profile.", "amber");
+      return;
+    }
+
     // Merge with existing skills
-    const existing = activeStudent.skills || [];
+    const existing = activeStudent?.skills || [];
     const mergedMap = new Map();
     existing.forEach(s => mergedMap.set(s.name.toLowerCase(), s));
     confirmedSkills.forEach(s => mergedMap.set(s.name.toLowerCase(), s));
 
     const updatedSkillsList = Array.from(mergedMap.values());
-    updateStudentSkills(activeStudent.id, updatedSkillsList);
 
-    // Attach uploaded resume metadata to student record
-    if (activeStudent) {
-      activeStudent.uploadedResume = {
-        name: uploadedFile ? uploadedFile.name : `${activeStudent.name.replace(/\s+/g, '_')}_Official_CV.pdf`,
+    // Prepare profile updates
+    const additionalData = {
+      uploadedResume: {
+        name: uploadedFile ? uploadedFile.name : `${(activeStudent?.name || 'Student').replace(/\s+/g, '_')}_Official_CV.pdf`,
         size: uploadedFile ? uploadedFile.size : '142 KB',
         uploadedAt: new Date().toLocaleDateString(),
         parsedSkillsCount: confirmedSkills.length,
         summary: parsingResult ? parsingResult.summary : 'Uploaded & NLP Verified'
-      };
+      }
+    };
+
+    if (parsingResult?.extractedCgpa && (!activeStudent?.cgpa || activeStudent?.cgpa === 8.5)) {
+      additionalData.cgpa = parsingResult.extractedCgpa;
     }
 
-    confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
-    addNotification("Skills Synced to Profile", `Added ${confirmedSkills.length} verified competencies to your profile. Match scores calibrated!`, "emerald");
+    updateStudentSkills(activeStudent?.id, updatedSkillsList, additionalData);
+
+    try {
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+    } catch (e) {
+      // Ignore if confetti blocked
+    }
+
+    addNotification(
+      "Skills Synced to Profile",
+      `Saved ${confirmedSkills.length} competencies to profile. Opportunity match scores calibrated!`,
+      "emerald"
+    );
     onClose();
   };
 
@@ -217,7 +294,7 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
                 borderRadius: 'var(--radius-lg)',
                 padding: '36px 20px',
                 textAlign: 'center',
-                cursor: 'pointer',
+                cursor: isAnalyzing ? 'wait' : 'pointer',
                 transition: 'all 0.2s ease'
               }}
             >
@@ -230,33 +307,38 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
               />
 
               <div style={{
-                width: '54px',
-                height: '54px',
+                width: '56px',
+                height: '56px',
                 borderRadius: '50%',
-                background: 'rgba(16, 185, 129, 0.15)',
-                color: '#10b981',
+                background: isAnalyzing ? 'rgba(56, 189, 248, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                color: isAnalyzing ? '#38bdf8' : '#10b981',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 12px auto'
               }}>
-                <UploadCloud size={28} />
+                {isAnalyzing ? (
+                  <RefreshCw size={28} className="spin" />
+                ) : (
+                  <UploadCloud size={28} />
+                )}
               </div>
 
               <h4 style={{ fontSize: '1.05rem', color: '#f1f5f9' }}>
-                Click to Upload PDF Resume or Drag and Drop
+                {isAnalyzing ? 'Extracting & Parsing PDF with NLP Engine...' : 'Click to Upload PDF Resume or Drag and Drop'}
               </h4>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Supports PDF, DOCX, DOC, or TXT (Up to 10MB). Automatically extracted with NLP.
+                Supports standard PDF documents (Tech & Ayush). Extracted client-side with zero external servers.
               </p>
 
               <button
                 type="button"
+                disabled={isAnalyzing}
                 className="btn btn-primary"
                 style={{ marginTop: '14px', fontSize: '0.82rem', padding: '8px 18px' }}
                 onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
               >
-                Browse PDF File
+                {isAnalyzing ? 'Analyzing Stream...' : 'Browse PDF File'}
               </button>
             </div>
 
@@ -268,7 +350,7 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
                   <div>
                     <strong style={{ fontSize: '0.88rem', color: '#ffffff' }}>{uploadedFile.name}</strong>
                     <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                      Size: {uploadedFile.size} • Uploaded: {uploadedFile.lastModified} • Status: <span style={{ color: '#34d399' }}>Parsed with NLP</span>
+                      Size: {uploadedFile.size} • Uploaded: {uploadedFile.lastModified} • Status: <span style={{ color: '#34d399' }}>Parsed with Client-Side PDF.js</span>
                     </div>
                   </div>
                 </div>
@@ -283,7 +365,7 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
               </div>
             )}
 
-            {/* Or Load Pre-Configured Domain Samples */}
+            {/* Load Pre-Configured Test Samples */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', padding: '12px 16px', borderRadius: 'var(--radius-md)' }}>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 Need a quick test resume?
@@ -294,7 +376,10 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
                   onClick={() => {
                     setResumeText(sampleAyushResume);
                     setUploadedFile({ name: 'Dr_Aanya_Sharma_BAMS_CV.pdf', size: '142 KB', lastModified: 'Today', type: 'application/pdf' });
-                    handleRunNLP();
+                    const res = parseResumeText(sampleAyushResume, 'ayush');
+                    setParsingResult(res);
+                    setEditableSkills(res.extractedSkills.map(s => ({ ...s, isHumanConfirmed: true })));
+                    setActiveTab('skills');
                   }}
                   className="glass-pill"
                   style={{ cursor: 'pointer', fontSize: '0.74rem' }}
@@ -306,7 +391,10 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
                   onClick={() => {
                     setResumeText(sampleTechResume);
                     setUploadedFile({ name: 'Rohan_Mehta_FullStack_CV.pdf', size: '168 KB', lastModified: 'Today', type: 'application/pdf' });
-                    handleRunNLP();
+                    const res = parseResumeText(sampleTechResume, 'tech');
+                    setParsingResult(res);
+                    setEditableSkills(res.extractedSkills.map(s => ({ ...s, isHumanConfirmed: true })));
+                    setActiveTab('skills');
                   }}
                   className="glass-pill"
                   style={{ cursor: 'pointer', fontSize: '0.74rem' }}
@@ -321,24 +409,103 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
         {/* Tab 2: Extracted Skills & Verification */}
         {activeTab === 'skills' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <div>
-                <h4 style={{ fontSize: '1rem', color: '#ffffff' }}>
-                  Extracted Competencies ({editableSkills.length} Detected)
-                </h4>
-                <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                  Confirm which skills to add to your profile and calibrate your proficiency levels (1 to 5).
-                </p>
+            {/* Header with Candidate Profile Summary */}
+            {parsingResult && (
+              <div className="glass-panel" style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between', borderLeft: '4px solid #10b981' }}>
+                <div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc' }}>
+                    Candidate: {parsingResult.extractedName}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    {parsingResult.extractedEmail && <span>{parsingResult.extractedEmail} • </span>}
+                    {parsingResult.extractedPhone && <span>{parsingResult.extractedPhone} • </span>}
+                    Degree: <strong style={{ color: '#38bdf8' }}>{parsingResult.extractedDegree}</strong> • CGPA: <strong style={{ color: '#34d399' }}>{parsingResult.extractedCgpa}</strong>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span className="glass-pill badge-emerald" style={{ fontSize: '0.72rem' }}>
+                    Detected Domain: {parsingResult.detectedDomain?.toUpperCase() || 'TECH'}
+                  </span>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={handleCommit}
-                className="btn btn-primary"
-                style={{ fontSize: '0.82rem', padding: '8px 16px' }}
-              >
-                <Save size={15} /> Save & Sync Skills to Profile
-              </button>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h4 style={{ fontSize: '0.98rem', color: '#ffffff' }}>
+                  Extracted Competencies ({editableSkills.filter(s => s.isHumanConfirmed).length}/{editableSkills.length} Selected)
+                </h4>
+                {editableSkills.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={toggleSelectAll}
+                    className="glass-pill"
+                    style={{ cursor: 'pointer', fontSize: '0.72rem', padding: '3px 8px' }}
+                  >
+                    {editableSkills.every(s => s.isHumanConfirmed) ? 'Deselect All' : 'Select All'}
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingSkill(!isAddingSkill)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '6px 12px' }}
+                >
+                  <Plus size={14} /> Add Additional Skill
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCommit}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+                >
+                  <Save size={14} /> Save & Sync to Profile
+                </button>
+              </div>
             </div>
+
+            {/* Quick Form to Add Custom Skill */}
+            {isAddingSkill && (
+              <form onSubmit={handleAddCustomSkill} className="glass-panel" style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Skill name (e.g. Next.js, Docker, DSA, Kotlin)..."
+                  value={customSkillName}
+                  onChange={(e) => setCustomSkillName(e.target.value)}
+                  style={{
+                    flex: 1,
+                    minWidth: '200px',
+                    padding: '8px 12px',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: '#fff',
+                    fontSize: '0.82rem'
+                  }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Level: {customSkillLevel}/5</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    value={customSkillLevel}
+                    onChange={(e) => setCustomSkillLevel(e.target.value)}
+                    style={{ width: '80px', accentColor: '#10b981' }}
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ fontSize: '0.78rem', padding: '6px 12px' }}>
+                  <Plus size={13} /> Add
+                </button>
+                <button type="button" onClick={() => setIsAddingSkill(false)} className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '6px 10px' }}>
+                  Cancel
+                </button>
+              </form>
+            )}
 
             {editableSkills.length === 0 ? (
               <div className="glass-panel" style={{ padding: '30px', textAlign: 'center' }}>
@@ -356,7 +523,7 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '340px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' }}>
                 {editableSkills.map((sk) => (
                   <div
                     key={sk.skillId}
@@ -369,7 +536,8 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
                       flexWrap: 'wrap',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: '12px'
+                      gap: '12px',
+                      transition: 'background 0.2s'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -380,27 +548,38 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
                         style={{ cursor: 'pointer', accentColor: '#10b981', width: '16px', height: '16px' }}
                       />
                       <div>
-                        <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: '#f1f5f9' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: sk.isHumanConfirmed ? '#f1f5f9' : 'var(--text-muted)' }}>
                           {sk.name}
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Confidence: <span style={{ color: '#38bdf8' }}>{sk.confidence}%</span> • Category: {sk.category}
+                          {sk.matchedPhrase && <span style={{ color: '#34d399', marginRight: '6px' }}>Matched: "{sk.matchedPhrase}"</span>}
+                          • Confidence: <span style={{ color: '#38bdf8' }}>{sk.confidence}%</span> • Category: {sk.category}
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-                        Level: <strong>{sk.level}/5</strong>
-                      </span>
-                      <input
-                        type="range"
-                        min="1"
-                        max="5"
-                        value={sk.level}
-                        onChange={(e) => handleLevelChange(sk.skillId, e.target.value)}
-                        style={{ width: '90px', accentColor: '#10b981', cursor: 'pointer' }}
-                      />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                          Level: <strong>{sk.level}/5</strong>
+                        </span>
+                        <input
+                          type="range"
+                          min="1"
+                          max="5"
+                          value={sk.level}
+                          onChange={(e) => handleLevelChange(sk.skillId, e.target.value)}
+                          style={{ width: '85px', accentColor: '#10b981', cursor: 'pointer' }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSkill(sk.skillId)}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                        title="Remove from list"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -412,30 +591,34 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
         {/* Tab 3: Check Uploaded Document & Extracted Text */}
         {activeTab === 'preview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div className="glass-panel" style={{ padding: '16px', borderLeft: '4px solid #38bdf8' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <div>
-                  <h4 style={{ fontSize: '0.96rem', color: '#ffffff' }}>
-                    Document File: {uploadedFile?.name || `${activeStudent?.name.replace(/\s+/g, '_')}_Official_CV.pdf`}
-                  </h4>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    Verified File Size: {uploadedFile?.size || '142 KB'} • Scanned via Client-Side NLP Engine
-                  </div>
+            <div className="glass-panel" style={{ padding: '14px 18px', borderLeft: '4px solid #38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <h4 style={{ fontSize: '0.94rem', color: '#ffffff' }}>
+                  Document: {uploadedFile?.name || `${(activeStudent?.name || 'Student').replace(/\s+/g, '_')}_Official_CV.pdf`}
+                </h4>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  Size: {uploadedFile?.size || '142 KB'} • Clean Text Decoded via PDF.js Stream Extraction
                 </div>
-                <span className="glass-pill badge-emerald">
-                  ● Verified Document
-                </span>
               </div>
+              <span className="glass-pill badge-emerald">
+                ● Client-Side Decoded
+              </span>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
-                Parsed Document Text Preview
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Decoded Document Text Preview (Editable)
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  {resumeText.length} characters
+                </span>
+              </div>
               <textarea
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
-                rows={9}
+                rows={10}
+                placeholder="Paste or inspect extracted resume text..."
                 style={{
                   width: '100%',
                   background: 'rgba(0, 0, 0, 0.4)',
@@ -444,21 +627,25 @@ export default function ResumeUploadModal({ isOpen, onClose }) {
                   color: '#cbd5e1',
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.78rem',
+                  lineHeight: '1.45',
                   padding: '12px',
                   resize: 'vertical'
                 }}
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Tip: You can edit or paste extra text above and click Re-Scan.
+              </span>
               <button
                 type="button"
                 onClick={handleRunNLP}
                 disabled={isAnalyzing}
                 className="btn btn-primary"
-                style={{ fontSize: '0.8rem' }}
+                style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <RefreshCw size={14} /> Re-Scan Text with NLP
+                <RefreshCw size={14} className={isAnalyzing ? 'spin' : ''} /> Re-Scan Text with NLP
               </button>
             </div>
           </div>
