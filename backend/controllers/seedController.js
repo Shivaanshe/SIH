@@ -1,8 +1,9 @@
+import { User } from '../models/User.js';
 import { StudentProfile } from '../models/StudentProfile.js';
 import { JobPosting } from '../models/JobPosting.js';
 import { SkillTaxonomy } from '../models/SkillTaxonomy.js';
 import { Application } from '../models/Application.js';
-import { seedTaxonomy, seedStudents, seedJobs } from '../data/seedData.js';
+import { seedTaxonomy, seedStudents, seedJobs, seedUsers } from '../data/seedData.js';
 
 /**
  * ============================================================================
@@ -81,6 +82,7 @@ export async function seedDatabaseIfEmpty(req, res, next) {
     }
 
     // Database is empty: Populate with initial datasets
+    await User.insertMany(seedUsers);
     await SkillTaxonomy.insertMany(seedTaxonomy);
     await StudentProfile.insertMany(seedStudents);
     await JobPosting.insertMany(seedJobs);
@@ -88,8 +90,9 @@ export async function seedDatabaseIfEmpty(req, res, next) {
     res.status(201).json({
       success: true,
       seeded: true,
-      message: 'Empty database successfully bootstrapped with initial AYUSH & Tech seed records.',
+      message: 'Empty database successfully bootstrapped with initial AYUSH & Tech seed records and shiv@123 credentials.',
       counts: {
+        users: seedUsers.length,
         skills: seedTaxonomy.length,
         students: seedStudents.length,
         jobs: seedJobs.length
@@ -105,7 +108,7 @@ export async function seedDatabaseIfEmpty(req, res, next) {
  * FUNCTION: resetDatabase
  * ============================================================================
  * WHAT IT NEEDS TO DO:
- * 1. Wipe all collections (StudentProfile, JobPosting, SkillTaxonomy, Application).
+ * 1. Wipe all collections (User, StudentProfile, JobPosting, SkillTaxonomy, Application).
  * 2. Re-populate with initial seed dataset.
  * 3. Useful for resetting state between demo presentations.
  *
@@ -114,18 +117,20 @@ export async function seedDatabaseIfEmpty(req, res, next) {
  */
 export async function resetDatabase(req, res, next) {
   try {
+    await User.deleteMany({});
     await StudentProfile.deleteMany({});
     await JobPosting.deleteMany({});
     await SkillTaxonomy.deleteMany({});
     await Application.deleteMany({});
 
+    await User.insertMany(seedUsers);
     await SkillTaxonomy.insertMany(seedTaxonomy);
     await StudentProfile.insertMany(seedStudents);
     await JobPosting.insertMany(seedJobs);
 
     res.status(200).json({
       success: true,
-      message: 'Database completely reset and re-seeded with clean demo baseline.'
+      message: 'Database completely reset and re-seeded with clean demo baseline and shiv@123 credentials.'
     });
   } catch (error) {
     next(error);

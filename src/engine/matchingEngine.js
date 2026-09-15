@@ -1,7 +1,95 @@
+import { ayushTaxonomy } from '../data/ayushTaxonomy';
+import { techTaxonomy } from '../data/techTaxonomy';
+
+const allTaxonomy = [...ayushTaxonomy, ...techTaxonomy];
+
 /**
- * KaushalSetu Core Matching Engine (PRD §11.2)
- * Formula: Match % = (w1 * SkillScore) + (w2 * ProjectRelevance) + (w3 * Eligibility) + (w4 * VerificationConfidence)
+ * Intelligent Skill Matcher: Matches a required posting skill against student skills by:
+ * 1. Direct skillId match
+ * 2. Exact name match (case-insensitive)
+ * 3. Substring inclusion (e.g. "React.js" inside "React.js & Frontend Architecture")
+ * 4. Taxonomy aliases (e.g. ReactJS, Next.js, Redux)
+ * 5. Semantic keyword root overlap
  */
+export function matchStudentSkill(req, studentSkills = [], taxonomy = allTaxonomy) {
+  if (!req || !studentSkills || !studentSkills.length) return null;
+
+  const reqNameClean = (req.name || "").toLowerCase().trim();
+  const reqId = req.skillId;
+
+  // 1. Direct ID match
+  if (reqId) {
+    const directMatch = studentSkills.find(s => s.skillId === reqId);
+    if (directMatch) return { skill: directMatch, matchType: 'exact_id', confidence: 1.0 };
+  }
+
+  // Look up taxonomy item for aliases
+  const taxItem = taxonomy.find(t =>
+    t.id === reqId ||
+    t.name.toLowerCase() === reqNameClean ||
+    (t.aliases || []).some(a => a.toLowerCase() === reqNameClean)
+  );
+
+  const aliases = [
+    ...(req.aliases || []),
+    ...(taxItem?.aliases || [])
+  ].map(a => a.toLowerCase().trim());
+
+  const filterWords = new Set(['and', '&', 'the', 'for', 'with', 'in', 'of', 'to', 'protocol', 'procedures', 'architecture', 'engineering']);
+  const reqTokens = reqNameClean.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(t => t.length >= 3 && !filterWords.has(t));
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const s of studentSkills) {
+    const sNameClean = (s.name || "").toLowerCase().trim();
+    if (!sNameClean) continue;
+
+    // Direct ID match fallback
+    if (taxItem && s.skillId === taxItem.id) {
+      return { skill: s, matchType: 'taxonomy_id', confidence: 1.0 };
+    }
+
+    // Exact name match
+    if (sNameClean === reqNameClean) {
+      return { skill: s, matchType: 'exact_name', confidence: 1.0 };
+    }
+
+    // Substring inclusion (e.g. "React.js" in "React.js & Frontend Architecture")
+    if (reqNameClean.includes(sNameClean) || sNameClean.includes(reqNameClean)) {
+      const score = 1.0;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = { skill: s, matchType: 'substring_exact', confidence: 1.0 };
+      }
+    }
+
+    // Taxonomy Alias match
+    const aliasMatched = aliases.some(alias =>
+      sNameClean === alias || sNameClean.includes(alias) || alias.includes(sNameClean)
+    );
+    if (aliasMatched) {
+      const score = 0.95;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = { skill: s, matchType: 'alias_match', confidence: 1.0 };
+      }
+    }
+
+    // Keyword root token overlap
+    const sTokens = sNameClean.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(t => t.length >= 3 && !filterWords.has(t));
+    const tokenOverlap = sTokens.some(st => reqTokens.includes(st) || reqTokens.some(rt => rt.includes(st) || st.includes(rt)));
+    if (tokenOverlap) {
+      const score = 0.90;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = { skill: s, matchType: 'token_match', confidence: 1.0 };
+      }
+    }
+  }
+
+  return bestMatch;
+}
 
 export function calculateMatchScore(student, posting) {
   if (!student || !posting) {
@@ -24,11 +112,6 @@ export function calculateMatchScore(student, posting) {
   };
 
   // 1. Skill Score Calculation
-  const studentSkillMap = new Map();
-  (student.skills || []).forEach(s => {
-    studentSkillMap.set(s.skillId, s);
-  });
-
   const requiredSkills = posting.requiredSkills || [];
   let totalSkillWeight = 0;
   let earnedSkillPoints = 0;
@@ -39,29 +122,17 @@ export function calculateMatchScore(student, posting) {
     const baseWeight = (req.weight || (1 / requiredSkills.length)) * importanceWeight;
     totalSkillWeight += baseWeight;
 
-    const studentSkill = studentSkillMap.get(req.skillId);
+    const matchedResult = matchStudentSkill(req, student.skills || [], allTaxonomy);
+    const matchedSkill = matchedResult?.skill;
+
     let matchType = "missing";
     let scoreRatio = 0;
     let studentProficiency = 0;
 
-    if (studentSkill) {
-      studentProficiency = studentSkill.level || 1;
+    if (matchedSkill) {
+      studentProficiency = matchedSkill.level || 1;
       scoreRatio = Math.min(1.0, studentProficiency / (req.minLevel || 1));
       matchType = scoreRatio >= 1.0 ? "exact_full" : "exact_partial";
-    } else {
-      // Check for partial semantic/category overlap if any student skill shares the category
-      const partialSkill = (student.skills || []).find(s => {
-        return (req.aliases || []).some(alias => 
-          (s.name && s.name.toLowerCase().includes(alias.toLowerCase())) ||
-          (alias.toLowerCase().includes(s.name ? s.name.toLowerCase() : ""))
-        );
-      });
-
-      if (partialSkill) {
-        studentProficiency = partialSkill.level || 1;
-        scoreRatio = Math.min(0.70, (studentProficiency / (req.minLevel || 1)) * 0.70); // 30% discount for semantic synonym
-        matchType = "semantic_partial";
-      }
     }
 
     earnedSkillPoints += scoreRatio * baseWeight;
@@ -74,8 +145,8 @@ export function calculateMatchScore(student, posting) {
       importance: req.importance,
       matchType,
       scoreContribution: Math.round(scoreRatio * 100),
-      isVerified: studentSkill ? Boolean(studentSkill.verified) : false,
-      endorsedBy: studentSkill ? studentSkill.endorsedBy : null
+      isVerified: matchedSkill ? Boolean(matchedSkill.verified) : false,
+      endorsedBy: matchedSkill ? matchedSkill.endorsedBy : null
     });
   });
 

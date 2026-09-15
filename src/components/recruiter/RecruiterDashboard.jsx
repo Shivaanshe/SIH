@@ -20,7 +20,7 @@ import {
 import confetti from 'canvas-confetti';
 
 export default function RecruiterDashboard() {
-  const { postings, students, updateApplicationStatus } = useData();
+  const { postings, students, updateApplicationStatus, closeJobPosting, deleteJobPosting } = useData();
   const { domainPack } = useApp();
 
   const [selectedPostingId, setSelectedPostingId] = useState(postings[0]?.id || '');
@@ -125,6 +125,8 @@ export default function RecruiterDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {postings.map(p => {
               const isSelected = p.id === activePosting?.id;
+              const isClosed = Boolean(p.isClosed);
+
               return (
                 <div
                   key={p.id}
@@ -135,19 +137,39 @@ export default function RecruiterDashboard() {
                     borderRadius: 'var(--radius-md)',
                     padding: '14px 16px',
                     cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    opacity: isClosed ? 0.75 : 1
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                     <h4 style={{ fontSize: '0.94rem', color: isSelected ? '#34d399' : '#f1f5f9' }}>{p.title}</h4>
-                    <span className="glass-pill" style={{ fontSize: '0.68rem' }}>{p.type.split(' ')[0]}</span>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <span className={`glass-pill ${isClosed ? 'badge-rose' : 'badge-emerald'}`} style={{ fontSize: '0.66rem' }}>
+                        {isClosed ? 'Closed' : 'Active'}
+                      </span>
+                      <span className="glass-pill" style={{ fontSize: '0.66rem' }}>{p.type.split(' ')[0]}</span>
+                    </div>
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                     {p.company} • {p.location}
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px', fontSize: '0.75rem' }}>
-                    <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{p.stipend}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>• {p.requiredSkills?.length} Required Skills</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', fontSize: '0.75rem' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{p.stipend}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>• {p.requiredSkills?.length} Skills</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeJobPosting(p.id);
+                      }}
+                      className={`btn ${isClosed ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ fontSize: '0.72rem', padding: '4px 10px' }}
+                      title={isClosed ? 'Reopen this posting' : 'Close this posting to new applicants'}
+                    >
+                      {isClosed ? '🔓 Reopen' : '🔒 Close'}
+                    </button>
                   </div>
                 </div>
               );

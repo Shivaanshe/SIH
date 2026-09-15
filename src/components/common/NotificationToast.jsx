@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
@@ -29,27 +29,32 @@ export default function NotificationToast() {
 
         const borderColor = isEmerald ? '#10b981' : isAmber ? '#f59e0b' : isRose ? '#f43f5e' : '#38bdf8';
         const Icon = isEmerald ? CheckCircle2 : isAmber ? AlertCircle : Info;
+        const isExiting = Boolean(note.isExiting);
 
         return (
           <div
             key={note.id}
             onClick={() => removeNotification(note.id)}
             style={{
-              padding: '12px 16px',
-              borderLeft: `4px solid ${borderColor}`,
-              border: `1px solid rgba(255,255,255,0.1)`,
-              borderLeftColor: borderColor,
+              padding: isExiting ? '0px 16px' : '14px 16px',
+              borderLeft: isExiting ? '0px solid transparent' : `4px solid ${borderColor}`,
+              border: isExiting ? 'none' : `1px solid rgba(255, 255, 255, 0.1)`,
+              borderLeftColor: isExiting ? 'transparent' : borderColor,
               borderRadius: 'var(--radius-md)',
               display: 'flex',
               alignItems: 'flex-start',
               gap: '12px',
-              boxShadow: '0 16px 36px rgba(0,0,0,0.6)',
+              boxShadow: isExiting ? 'none' : '0 16px 36px rgba(0, 0, 0, 0.6)',
               background: 'rgba(13, 21, 25, 0.96)',
               backdropFilter: 'blur(16px)',
               cursor: 'pointer',
-              pointerEvents: 'auto',
-              animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-              transition: 'all 0.2s ease',
+              pointerEvents: isExiting ? 'none' : 'auto',
+              opacity: isExiting ? 0 : 1,
+              transform: isExiting ? 'translateX(100%) scale(0.92)' : 'translateX(0) scale(1)',
+              maxHeight: isExiting ? '0px' : '180px',
+              marginBottom: isExiting ? '-10px' : '0px',
+              animation: isExiting ? 'none' : 'toastSlideIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease, margin 0.35s ease',
               position: 'relative',
               overflow: 'hidden'
             }}
@@ -65,7 +70,7 @@ export default function NotificationToast() {
               </div>
             </div>
 
-            {/* Easy Click-to-Close Button with Generous Hit Area */}
+            {/* Close Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -97,6 +102,21 @@ export default function NotificationToast() {
             >
               <X size={13} />
             </button>
+
+            {/* Smooth Countdown Progress Bar */}
+            {!isExiting && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  height: '3px',
+                  background: borderColor,
+                  animation: 'toastProgress 3.8s linear forwards',
+                  opacity: 0.6
+                }}
+              />
+            )}
           </div>
         );
       })}

@@ -1,5 +1,6 @@
 import { ayushTaxonomy } from '../data/ayushTaxonomy';
 import { techTaxonomy } from '../data/techTaxonomy';
+import { matchStudentSkill } from './matchingEngine';
 
 /**
  * KaushalSetu Gap Analysis Engine (PRD §11.3 & §11.4)
@@ -10,17 +11,16 @@ export function computeGapAnalysis(student, posting, domainPack = "ayush") {
   if (!student || !posting) return [];
 
   const taxonomy = domainPack === "ayush" ? ayushTaxonomy : techTaxonomy;
+  const allTaxonomy = [...ayushTaxonomy, ...techTaxonomy];
   const taxonomyMap = new Map();
-  taxonomy.forEach(item => taxonomyMap.set(item.id, item));
-
-  const studentSkillMap = new Map();
-  (student.skills || []).forEach(s => studentSkillMap.set(s.skillId, s));
+  allTaxonomy.forEach(item => taxonomyMap.set(item.id, item));
 
   const gaps = [];
 
   (posting.requiredSkills || []).forEach(req => {
-    const studentSkill = studentSkillMap.get(req.skillId);
-    const studentLevel = studentSkill ? studentSkill.level : 0;
+    const matchedResult = matchStudentSkill(req, student.skills || [], allTaxonomy);
+    const matchedSkill = matchedResult?.skill;
+    const studentLevel = matchedSkill ? matchedSkill.level : 0;
     const requiredLevel = req.minLevel || 1;
     const gapSize = Math.max(0, requiredLevel - studentLevel);
 

@@ -48,8 +48,16 @@ export default function ProfileEditor() {
       return;
     }
 
+    // Check if skill matches any taxonomy item or alias
+    const taxMatch = (activeTaxonomy || []).find(t =>
+      t.name.toLowerCase() === newSkillName.trim().toLowerCase() ||
+      t.name.toLowerCase().includes(newSkillName.trim().toLowerCase()) ||
+      newSkillName.trim().toLowerCase().includes(t.name.toLowerCase()) ||
+      (t.aliases || []).some(a => a.toLowerCase() === newSkillName.trim().toLowerCase())
+    );
+
     const newSkill = {
-      skillId: `custom-${Date.now()}`,
+      skillId: taxMatch ? taxMatch.id : `custom-${Date.now()}`,
       name: newSkillName.trim(),
       level: Number(newSkillLevel),
       verified: false,
@@ -145,14 +153,14 @@ export default function ProfileEditor() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <strong style={{ fontSize: '0.9rem' }}>
-                  {activeStudent.name.replace(/\s+/g, '_')}_Official_CV.pdf
+                  {activeStudent.uploadedResume?.name || `${activeStudent.name.replace(/\s+/g, '_')}_Official_CV.pdf`}
                 </strong>
                 <span className="glass-pill badge-emerald" style={{ fontSize: '0.66rem' }}>
                   ● NLP Parsed
                 </span>
               </div>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                142 KB • Extracted {activeStudent.skills?.length || 0} Competencies • Synced with APAAR
+                {activeStudent.uploadedResume?.size || '142 KB'} • Extracted {activeStudent.skills?.length || 0} Competencies • Synced with APAAR
               </div>
             </div>
           </div>
@@ -163,7 +171,7 @@ export default function ProfileEditor() {
               className="btn btn-secondary"
               style={{ fontSize: '0.76rem', padding: '6px 12px' }}
             >
-              <Upload size={13} /> View / Re-Scan CV
+              <Upload size={13} /> Upload New PDF / Inspect
             </button>
           </div>
         </div>

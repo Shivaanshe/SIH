@@ -277,6 +277,32 @@ export function DataProvider({ children }) {
     addNotification("Opportunity Published", `Successfully posted "${newPost.title}". Live on student feeds.`, "emerald");
   };
 
+  // Recruiter closes or reopens a posting
+  const closeJobPosting = (postingId) => {
+    const target = postings.find(p => p.id === postingId);
+    if (!target) return;
+    const newClosed = !target.isClosed;
+
+    setPostings(prev => prev.map(p => {
+      if (p.id === postingId) {
+        return { ...p, isClosed: newClosed };
+      }
+      return p;
+    }));
+
+    addNotification(
+      newClosed ? "Opportunity Closed" : "Opportunity Reopened",
+      `"${target.title}" is now ${newClosed ? 'closed to new applicants' : 'active and accepting applicants'}.`,
+      newClosed ? "amber" : "emerald"
+    );
+  };
+
+  // Recruiter deletes a posting
+  const deleteJobPosting = (postingId) => {
+    setPostings(prev => prev.filter(p => p.id !== postingId));
+    addNotification("Opportunity Deleted", "Posting permanently removed from active listings.", "rose");
+  };
+
   // 1. Skill Assessment Completion Handler
   const completeSkillAssessment = (assessmentResult) => {
     if (!activeStudent) return;
@@ -379,6 +405,8 @@ export function DataProvider({ children }) {
         endorseStudentSkill,
         updateStudentSkills,
         createJobPosting,
+        closeJobPosting,
+        deleteJobPosting,
         dbStatus,
         dataSource,
         seedDatabaseNow,

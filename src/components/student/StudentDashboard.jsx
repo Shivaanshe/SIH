@@ -251,6 +251,11 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
                 <div style={{ flex: 1, minWidth: '280px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <h3 style={{ fontSize: '1.2rem', color: '#ffffff' }}>{posting.title}</h3>
+                    {posting.isClosed && (
+                      <span className="glass-pill badge-rose" style={{ fontSize: '0.68rem' }}>
+                        Closed
+                      </span>
+                    )}
                     {isApplied && (
                       <span className="glass-pill badge-emerald" style={{ fontSize: '0.68rem' }}>
                         Applied
@@ -310,7 +315,15 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {isApplied ? (
+                    {posting.isClosed ? (
+                      <button
+                        disabled
+                        className="btn btn-secondary"
+                        style={{ fontSize: '0.8rem', padding: '8px 16px', opacity: 0.6, cursor: 'not-allowed' }}
+                      >
+                        🔒 Applications Closed
+                      </button>
+                    ) : isApplied ? (
                       <button
                         disabled
                         className="btn btn-secondary"

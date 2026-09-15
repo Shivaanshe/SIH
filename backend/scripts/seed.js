@@ -1,11 +1,12 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { connectDB } from '../config/db.js';
+import { User } from '../models/User.js';
 import { StudentProfile } from '../models/StudentProfile.js';
 import { JobPosting } from '../models/JobPosting.js';
 import { SkillTaxonomy } from '../models/SkillTaxonomy.js';
 import { Application } from '../models/Application.js';
-import { seedTaxonomy, seedStudents, seedJobs } from '../data/seedData.js';
+import { seedTaxonomy, seedStudents, seedJobs, seedUsers } from '../data/seedData.js';
 
 dotenv.config();
 
@@ -28,11 +29,13 @@ async function runSeed() {
     }
 
     console.log('📦 Database is empty. Seeding initial records...');
+    await User.insertMany(seedUsers);
     await SkillTaxonomy.insertMany(seedTaxonomy);
     await StudentProfile.insertMany(seedStudents);
     await JobPosting.insertMany(seedJobs);
 
     console.log('✅ Database seeded successfully!');
+    console.log(`   • ${seedUsers.length} Users inserted (shiv@123 / 123)`);
     console.log(`   • ${seedTaxonomy.length} Skills inserted`);
     console.log(`   • ${seedStudents.length} Student profiles inserted`);
     console.log(`   • ${seedJobs.length} Job postings inserted`);

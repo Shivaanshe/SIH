@@ -55,21 +55,21 @@ const demoPersonas = [
 ];
 
 export default function AuthModal({ isOpen, onClose }) {
-  const { role, setRole, addNotification } = useApp();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { role, setRole, addNotification, login } = useApp();
+  const [email, setEmail] = useState('shiv@123');
+  const [password, setPassword] = useState('123');
 
   if (!isOpen) return null;
 
   const handleSelectPersona = (p) => {
     setRole(p.role);
-    addNotification("Authenticated Successfully", `Signed in as ${p.name} (${p.role.toUpperCase()}).`, "emerald");
+    login(p.email, '123', p.role);
     onClose();
   };
 
   const handleCustomLogin = (e) => {
     e.preventDefault();
-    addNotification("Session Initialized", `Signed in with ${email}.`, "emerald");
+    login(email, password, role);
     onClose();
   };
 

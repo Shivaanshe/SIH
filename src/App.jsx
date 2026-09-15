@@ -11,6 +11,7 @@ import CollaborationHub from './components/collaboration/CollaborationHub';
 import LearningProgramsSection from './components/learning/LearningProgramsSection';
 import SkillAssessmentModal from './components/student/SkillAssessmentModal';
 import InternshipProgressModal from './components/student/InternshipProgressModal';
+import LoginPage from './components/auth/LoginPage';
 import {
   LayoutDashboard,
   Users,
@@ -26,13 +27,23 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const { role, domainPack } = useApp();
+  const { role, domainPack, isAuthenticated } = useApp();
   const { activeStudent, postings } = useData();
 
   // Navigation tab state: 'dashboard', 'collaboration', 'learning'
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
   const [isInternshipModalOpen, setIsInternshipModalOpen] = useState(false);
+
+  // If not logged in, render the dedicated Login Page
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LoginPage />
+        <NotificationToast />
+      </>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>

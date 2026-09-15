@@ -11,7 +11,8 @@ import {
   Layers,
   Sun,
   Moon,
-  User
+  User,
+  LogOut
 } from 'lucide-react';
 
 export default function Header() {
@@ -24,7 +25,9 @@ export default function Header() {
     setDomainPack,
     theme,
     setTheme,
-    addNotification
+    addNotification,
+    currentUser,
+    logout
   } = useApp();
 
   const { activeStudent, dbStatus, seedDatabaseNow } = useData();
@@ -234,15 +237,27 @@ export default function Header() {
           </div>
 
           {/* User Profile & Auth Trigger */}
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            className="btn btn-secondary"
-            style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-            title="Switch User Identity or Authenticate"
-          >
-            <User size={13} color="#10b981" />
-            <span style={{ textTransform: 'capitalize' }}>{role} Access</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Switch User Identity or Role"
+            >
+              <User size={13} color="#10b981" />
+              <span style={{ textTransform: 'capitalize' }}>{currentUser?.email || 'shiv@123'} ({role})</span>
+            </button>
+
+            <button
+              onClick={logout}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '6px 10px', color: '#fca5a5' }}
+              title="Sign Out to Login Page"
+            >
+              <LogOut size={13} />
+              <span>Sign Out</span>
+            </button>
+          </div>
 
           {/* Theme Switcher */}
           <button

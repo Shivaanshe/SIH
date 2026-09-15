@@ -2,11 +2,42 @@ import React, { useState } from 'react';
 import Modal from '../common/Modal';
 import { useData } from '../../context/DataContext';
 import { useApp } from '../../context/AppContext';
-import { Plus, Trash2, Briefcase, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Briefcase, CheckCircle, Sparkles, Building, MapPin, Banknote } from 'lucide-react';
+import confetti from 'canvas-confetti';
+
+const commonTechSkills = [
+  "React.js & Modern Frontend Architecture",
+  "Node.js & Scalable REST/GraphQL APIs",
+  "Python & Machine Learning Pipelines",
+  "Java & Enterprise Spring Boot",
+  "Database Systems & Data Modeling (SQL / NoSQL)",
+  "Cloud Architecture & AWS / GCP Deployment",
+  "Docker, Kubernetes & CI/CD Pipelines",
+  "TypeScript & Full-Stack System Design",
+  "Cybersecurity & Zero-Trust Infrastructure",
+  "Data Engineering & Apache Kafka Streams",
+  "Mobile App Development (React Native / Flutter)"
+];
+
+const commonAyushSkills = [
+  "Panchakarma Protocol & Procedures",
+  "Kayachikitsa (Internal Medicine & Diagnostics)",
+  "Dravyaguna & Herb Identification",
+  "Rasashastra & Formulation Quality Control",
+  "Shalya Tantra (Surgical Procedures & Ksharsutra)",
+  "Clinical Trial Documentation & AYUSH GCP",
+  "Yoga Therapy & Lifestyle Prescription",
+  "Agadatantra & Forensic Toxicology",
+  "Nadi Pariksha & Pulse Diagnostics",
+  "Schedule T GMP & Pharmacopoeial Standardization",
+  "Panchakarma IPD & Inpatient Care Management"
+];
 
 export default function CreateJobModal({ isOpen, onClose }) {
   const { activeTaxonomy, createJobPosting } = useData();
-  const { domainPack } = useApp();
+  const { domainPack, addNotification } = useApp();
+
+  const suggestedSkills = domainPack === 'ayush' ? commonAyushSkills : commonTechSkills;
 
   const [title, setTitle] = useState(
     domainPack === 'ayush'
@@ -30,14 +61,14 @@ export default function CreateJobModal({ isOpen, onClose }) {
 
   const [selectedSkills, setSelectedSkills] = useState([
     {
-      skillId: activeTaxonomy[0]?.id || 'ayush-pk-01',
-      name: activeTaxonomy[0]?.name || 'Panchakarma Protocol & Procedures',
+      skillId: domainPack === 'ayush' ? 'ayush-pk-01' : 'tech-react-01',
+      name: domainPack === 'ayush' ? 'Panchakarma Protocol & Procedures' : 'React.js & Frontend Architecture',
       minLevel: 4,
       importance: 'must-have'
     },
     {
-      skillId: activeTaxonomy[1]?.id || 'ayush-kaya-02',
-      name: activeTaxonomy[1]?.name || 'Kayachikitsa (Internal Medicine & Diagnostics)',
+      skillId: domainPack === 'ayush' ? 'ayush-kaya-02' : 'tech-node-02',
+      name: domainPack === 'ayush' ? 'Kayachikitsa (Internal Medicine & Diagnostics)' : 'Node.js & Express API Engineering',
       minLevel: 3,
       importance: 'must-have'
     }
@@ -46,22 +77,36 @@ export default function CreateJobModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const handleAddSkill = () => {
-    const available = activeTaxonomy.find(t => !selectedSkills.some(s => s.skillId === t.id));
-    if (available) {
-      setSelectedSkills(prev => [
-        ...prev,
-        { skillId: available.id, name: available.name, minLevel: 3, importance: 'nice-to-have' }
-      ]);
-    }
+    // Find first suggested skill not yet added
+    const available = suggestedSkills.find(s => !selectedSkills.some(item => item.name.toLowerCase() === s.toLowerCase()));
+    const newName = available || (domainPack === 'ayush' ? 'Dravyaguna & Herb Identification' : 'Database Systems & Data Modeling');
+    
+    setSelectedSkills(prev => [
+      ...prev,
+      {
+        skillId: `req-${Date.now()}`,
+        name: newName,
+        minLevel: 3,
+        importance: 'nice-to-have'
+      }
+    ]);
   };
 
-  const handleRemoveSkill = (id) => {
-    setSelectedSkills(prev => prev.filter(s => s.skillId !== id));
+  const handleRemoveSkill = (index) => {
+    setSelectedSkills(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSkillChange = (index, field, value) => {
     setSelectedSkills(prev => prev.map((s, i) => {
-      if (i === index) return { ...s, [field]: value };
+      if (i === index) {
+        const updated = { ...s, [field]: value };
+        if (field === 'name') {
+          // If name matches a taxonomy item, link its id
+          const tax = activeTaxonomy.find(t => t.name.toLowerCase() === value.toLowerCase() || (t.aliases || []).some(a => a.toLowerCase() === value.toLowerCase()));
+          if (tax) updated.skillId = tax.id;
+        }
+        return updated;
+      }
       return s;
     }));
   };
@@ -81,7 +126,7 @@ export default function CreateJobModal({ isOpen, onClose }) {
       description,
       eligibility: {
         degree: domainPack === 'ayush' ? ['BAMS', 'MD (Ayurveda)'] : ['B.Tech CS', 'MCA'],
-        minCgpa: parseFloat(minCgpa),
+        minCgpa: parseFloat(minCgpa) || 7.0,
         year: ['Final Year', 'Internship Year']
       },
       requiredSkills: selectedSkills.map(s => ({
@@ -96,6 +141,7 @@ export default function CreateJobModal({ isOpen, onClose }) {
       }
     });
 
+    confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
     onClose();
   };
 
@@ -104,89 +150,108 @@ export default function CreateJobModal({ isOpen, onClose }) {
       isOpen={isOpen}
       onClose={onClose}
       title="Post New Clinical / Technical Opportunity"
-      subtitle="Define required skills, importance weights, and eligibility for instant candidate matching"
-      maxWidth="760px"
+      subtitle="Define required skills (type custom or pick from recommendations), importance weights, and eligibility"
+      maxWidth="780px"
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        {/* Basic Information */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
           <div>
-            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>ROLE TITLE</label>
+            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              ROLE TITLE
+            </label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Senior Frontend Engineer"
               style={{
                 width: '100%',
-                background: 'rgba(0,0,0,0.4)',
+                background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-sm)',
                 color: '#ffffff',
-                padding: '8px 12px',
-                marginTop: '4px'
+                padding: '9px 12px',
+                marginTop: '4px',
+                fontSize: '0.86rem'
               }}
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>COMPANY / CLINICAL WING</label>
+            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              COMPANY / CLINICAL WING
+            </label>
             <input
               type="text"
               required
               value={company}
               onChange={(e) => setCompany(e.target.value)}
+              placeholder="e.g. Dabur India / AIIA IPD"
               style={{
                 width: '100%',
-                background: 'rgba(0,0,0,0.4)',
+                background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-sm)',
                 color: '#ffffff',
-                padding: '8px 12px',
-                marginTop: '4px'
+                padding: '9px 12px',
+                marginTop: '4px',
+                fontSize: '0.86rem'
               }}
             />
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
           <div>
-            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>SECTOR</label>
+            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              SECTOR
+            </label>
             <input
               type="text"
               value={sector}
               onChange={(e) => setSector(e.target.value)}
+              placeholder="e.g. HealthTech / Pharma"
               style={{
                 width: '100%',
-                background: 'rgba(0,0,0,0.4)',
+                background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-sm)',
                 color: '#ffffff',
-                padding: '8px 12px',
-                marginTop: '4px'
+                padding: '9px 12px',
+                marginTop: '4px',
+                fontSize: '0.84rem'
               }}
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>STIPEND</label>
+            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              STIPEND
+            </label>
             <input
               type="text"
               value={stipend}
               onChange={(e) => setStipend(e.target.value)}
+              placeholder="e.g. ₹40,000 / month"
               style={{
                 width: '100%',
-                background: 'rgba(0,0,0,0.4)',
+                background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-sm)',
                 color: '#ffffff',
-                padding: '8px 12px',
-                marginTop: '4px'
+                padding: '9px 12px',
+                marginTop: '4px',
+                fontSize: '0.84rem'
               }}
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>MIN CGPA</label>
+            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              MIN CGPA
+            </label>
             <input
               type="number"
               step="0.1"
@@ -194,143 +259,177 @@ export default function CreateJobModal({ isOpen, onClose }) {
               onChange={(e) => setMinCgpa(e.target.value)}
               style={{
                 width: '100%',
-                background: 'rgba(0,0,0,0.4)',
+                background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-sm)',
                 color: '#ffffff',
-                padding: '8px 12px',
-                marginTop: '4px'
+                padding: '9px 12px',
+                marginTop: '4px',
+                fontSize: '0.84rem'
               }}
             />
           </div>
         </div>
 
         <div>
-          <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>DESCRIPTION</label>
+          <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            ROLE DESCRIPTION
+          </label>
           <textarea
             rows={2}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             style={{
               width: '100%',
-              background: 'rgba(0,0,0,0.4)',
+              background: 'rgba(255, 255, 255, 0.04)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-sm)',
               color: '#ffffff',
-              padding: '8px 12px',
-              marginTop: '4px'
+              padding: '9px 12px',
+              marginTop: '4px',
+              fontSize: '0.84rem',
+              resize: 'vertical'
             }}
           />
         </div>
 
+        {/* Datalist for autocomplete suggestions */}
+        <datalist id="suggested-skills-list">
+          {suggestedSkills.map((s, idx) => (
+            <option key={idx} value={s} />
+          ))}
+        </datalist>
+
         {/* Required Skills & Weights Section */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <label style={{ fontSize: '0.82rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-              REQUIRED COMPETENCIES & WEIGHTS (PRD §10.4):
-            </label>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-md)',
+          padding: '16px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#f1f5f9' }}>
+                REQUIRED COMPETENCIES & TARGET PROFICIENCY (PRD §10.4)
+              </span>
+              <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                Type any custom skill name or choose from suggestions. Student match is dynamically calibrated.
+              </p>
+            </div>
             <button
               type="button"
               onClick={handleAddSkill}
-              className="glass-pill"
-              style={{ cursor: 'pointer' }}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '5px 12px' }}
             >
               <Plus size={13} /> Add Competency
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {selectedSkills.map((sk, index) => (
               <div
                 key={index}
                 style={{
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
                   borderRadius: 'var(--radius-sm)',
-                  padding: '8px 12px',
-                  display: 'flex',
+                  padding: '10px 14px',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto auto auto',
                   alignItems: 'center',
-                  gap: '12px'
+                  gap: '10px'
                 }}
               >
-                <select
-                  value={sk.skillId}
-                  onChange={(e) => {
-                    const item = activeTaxonomy.find(t => t.id === e.target.value);
-                    if (item) {
-                      handleSkillChange(index, 'skillId', item.id);
-                      handleSkillChange(index, 'name', item.name);
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    background: 'rgba(0,0,0,0.4)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '4px',
-                    color: '#ffffff',
-                    padding: '6px 8px',
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  {activeTaxonomy.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+                {/* Skill Name Input (Editable & Autocomplete) */}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    list="suggested-skills-list"
+                    value={sk.name}
+                    onChange={(e) => handleSkillChange(index, 'name', e.target.value)}
+                    placeholder="Type or select required skill (e.g. React.js, Python, GCP)"
+                    required
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: '6px',
+                      color: '#ffffff',
+                      padding: '7px 10px',
+                      fontSize: '0.82rem'
+                    }}
+                  />
+                </div>
 
+                {/* Target Proficiency Level */}
                 <select
                   value={sk.minLevel}
                   onChange={(e) => handleSkillChange(index, 'minLevel', Number(e.target.value))}
                   style={{
-                    background: 'rgba(0,0,0,0.4)',
+                    background: 'rgba(0, 0, 0, 0.4)',
                     border: '1px solid var(--border-subtle)',
-                    borderRadius: '4px',
+                    borderRadius: '6px',
                     color: '#ffffff',
-                    padding: '6px 8px',
-                    fontSize: '0.8rem'
+                    padding: '7px 10px',
+                    fontSize: '0.78rem'
                   }}
                 >
+                  <option value="1">Level 1+ (Awareness)</option>
                   <option value="2">Level 2+ (Basic)</option>
                   <option value="3">Level 3+ (Competent)</option>
                   <option value="4">Level 4+ (Proficient)</option>
                   <option value="5">Level 5 (Expert)</option>
                 </select>
 
+                {/* Importance Weight */}
                 <select
                   value={sk.importance}
                   onChange={(e) => handleSkillChange(index, 'importance', e.target.value)}
                   style={{
-                    background: 'rgba(0,0,0,0.4)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '4px',
+                    background: sk.importance === 'must-have' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                    border: `1px solid ${sk.importance === 'must-have' ? '#10b981' : '#f59e0b'}`,
+                    borderRadius: '6px',
                     color: sk.importance === 'must-have' ? '#34d399' : '#fbbf24',
-                    padding: '6px 8px',
-                    fontSize: '0.8rem',
+                    padding: '7px 10px',
+                    fontSize: '0.78rem',
                     fontWeight: 'bold'
                   }}
                 >
-                  <option value="must-have">Must-Have (40%)</option>
-                  <option value="nice-to-have">Nice-to-Have (20%)</option>
+                  <option value="must-have" style={{ background: '#0f172a', color: '#34d399' }}>Must-Have (40%)</option>
+                  <option value="nice-to-have" style={{ background: '#0f172a', color: '#fbbf24' }}>Nice-to-Have (20%)</option>
                 </select>
 
-                {selectedSkills.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSkill(sk.skillId)}
-                    style={{ background: 'transparent', border: 'none', color: '#f43f5e', cursor: 'pointer' }}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                )}
+                {/* Delete Skill */}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveSkill(index)}
+                  disabled={selectedSkills.length <= 1}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: selectedSkills.length <= 1 ? '#475569' : '#f43f5e',
+                    cursor: selectedSkills.length <= 1 ? 'not-allowed' : 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Remove competency"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             ))}
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+        {/* Modal Actions */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
           <button type="button" onClick={onClose} className="btn btn-secondary">
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Briefcase size={16} /> Publish Opportunity
           </button>
         </div>

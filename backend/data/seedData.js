@@ -161,3 +161,38 @@ export const seedJobs = [
     applicantsCount: 24
   }
 ];
+
+export const seedUsers = [
+  {
+    name: 'Shiv Sharma',
+    email: 'shiv@123',
+    passwordHash: '$2a$10$yrM4LXyT1FkmrSIn/b7Equ2x8BB.qMPJa7aSMBOFYR3axv1q/AX96', // password: 123
+    role: 'student',
+    institutionId: 'inst-aiia-01',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+  },
+  {
+    name: 'Dr. Arvind Verma',
+    email: 'spoc@123',
+    passwordHash: '$2a$10$yrM4LXyT1FkmrSIn/b7Equ2x8BB.qMPJa7aSMBOFYR3axv1q/AX96', // password: 123
+    role: 'spoc',
+    institutionId: 'inst-aiia-01',
+    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&auto=format&fit=crop&q=80'
+  },
+  {
+    name: 'Dabur Talent Acquisition',
+    email: 'hr@123',
+    passwordHash: '$2a$10$yrM4LXyT1FkmrSIn/b7Equ2x8BB.qMPJa7aSMBOFYR3axv1q/AX96', // password: 123
+    role: 'recruiter',
+    institutionId: null,
+    avatar: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=100&auto=format&fit=crop&q=80'
+  },
+  {
+    name: 'National Skill Directorate',
+    email: 'admin@123',
+    passwordHash: '$2a$10$yrM4LXyT1FkmrSIn/b7Equ2x8BB.qMPJa7aSMBOFYR3axv1q/AX96', // password: 123
+    role: 'ministry',
+    institutionId: null,
+    avatar: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=100&auto=format&fit=crop&q=80'
+  }
+];

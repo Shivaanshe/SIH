@@ -333,3 +333,19 @@ h1, h2, h3, h4, h5, h6 {
 .pulse-emerald {
   animation: pulseGlow 3s infinite ease-in-out;
 }
+
+@keyframes toastProgress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
