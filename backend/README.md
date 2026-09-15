@@ -3,7 +3,7 @@
 **Stack:** Node.js, Express, MongoDB (Mongoose), JWT Authentication
 
 ---
-
+## vaibhav
 ## 🚀 Quick Start for Teammate
 
 ### 1. Install Dependencies
