@@ -17,7 +17,7 @@ import {
   Filter
 } from 'lucide-react';
 
-export default function StudentDashboard() {
+export default function StudentDashboard({ onOpenAssessment, onOpenInternship }) {
   const { activeStudent, studentMatches, postings } = useData();
   const { domainPack } = useApp();
 
@@ -54,6 +54,34 @@ export default function StudentDashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Quick Action Navigation */}
+      <div className="glass-panel" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+          <Sparkles size={16} color="#10b981" />
+          <span>Calibrate your verified employability score or submit weekly internship milestones:</span>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {onOpenAssessment && (
+            <button
+              onClick={onOpenAssessment}
+              className="btn btn-primary"
+              style={{ fontSize: '0.78rem', padding: '6px 14px' }}
+            >
+              📝 Take Skill Assessment
+            </button>
+          )}
+          {onOpenInternship && (
+            <button
+              onClick={onOpenInternship}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '6px 14px' }}
+            >
+              🕒 Active Internship Log
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Metrics Row */}
       <div className="grid-metrics">
         <MetricCard

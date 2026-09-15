@@ -1,77 +1,181 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from './context/AppContext';
+import { useData } from './context/DataContext';
 import Header from './components/common/Header';
 import NotificationToast from './components/common/NotificationToast';
-import SkillBridgeCanvas from './components/3d/SkillBridgeCanvas';
-import SkillConstellation3D from './components/3d/SkillConstellation3D';
-import AnatomyHologram3D from './components/3d/AnatomyHologram3D';
 import StudentDashboard from './components/student/StudentDashboard';
 import SpocDashboard from './components/spoc/SpocDashboard';
 import RecruiterDashboard from './components/recruiter/RecruiterDashboard';
 import MinistryDashboard from './components/ministry/MinistryDashboard';
-import { Compass, Boxes, Sparkles, Shield, Heart } from 'lucide-react';
+import CollaborationHub from './components/collaboration/CollaborationHub';
+import LearningProgramsSection from './components/learning/LearningProgramsSection';
+import SkillAssessmentModal from './components/student/SkillAssessmentModal';
+import InternshipProgressModal from './components/student/InternshipProgressModal';
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  Brain,
+  Clock,
+  Briefcase,
+  ShieldCheck,
+  Building,
+  GraduationCap,
+  Sparkles,
+  ArrowRight
+} from 'lucide-react';
 
 export default function App() {
-  const { role, active3DView, setActive3DView, domainPack } = useApp();
+  const { role, domainPack } = useApp();
+  const { activeStudent, postings } = useData();
+
+  // Navigation tab state: 'dashboard', 'collaboration', 'learning'
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
+  const [isInternshipModalOpen, setIsInternshipModalOpen] = useState(false);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
 
-      <main className="app-container" style={{ flex: 1, paddingTop: '24px' }}>
-        {/* 3D Web Experience Hero Section */}
-        <section style={{ marginBottom: '28px' }}>
-          <div className="glass-panel" style={{ padding: '16px', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', padding: '0 8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={16} color="#10b981" />
-                <h3 style={{ fontSize: '0.96rem', letterSpacing: '-0.01em' }}>
-                  {active3DView === 'bridge' && "3D KaushalSetu Dynamic Skill Bridge — Three.js / WebGL"}
-                  {active3DView === 'constellation' && "3D Interactive Skill Constellation & Spatial Knowledge Graph"}
-                  {active3DView === 'anatomy' && "3D Holographic Clinical / Marma Diagnostic Model"}
-                </h3>
+      <main className="app-container" style={{ flex: 1, paddingTop: '20px' }}>
+        {/* Minimal Enterprise Command Header (Zero 3D Overhead) */}
+        <section style={{ marginBottom: '22px' }}>
+          <div className="glass-panel" style={{
+            padding: '16px 20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '14px',
+            borderLeft: '4px solid #10b981'
+          }}>
+            {/* Context Breadcrumb & Status */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#10b981', fontWeight: 700 }}>
+                  Portal Workspace
+                </span>
+                <span style={{ color: 'var(--text-muted)' }}>•</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Active Sector: <strong style={{ color: '#e2e8f0' }}>{domainPack === 'ayush' ? 'Ministry of Ayush / AIIA' : 'Computer Science & IT'}</strong>
+                </span>
               </div>
-
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  onClick={() => setActive3DView('bridge')}
-                  className={`btn ${active3DView === 'bridge' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
-                >
-                  <Compass size={13} /> Bridge
-                </button>
-                <button
-                  onClick={() => setActive3DView('constellation')}
-                  className={`btn ${active3DView === 'constellation' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
-                >
-                  <Boxes size={13} /> Constellation
-                </button>
-                {domainPack === 'ayush' && (
-                  <button
-                    onClick={() => setActive3DView('anatomy')}
-                    className={`btn ${active3DView === 'anatomy' ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ fontSize: '0.74rem', padding: '4px 10px' }}
-                  >
-                    🧬 Clinical
-                  </button>
-                )}
-              </div>
+              <h2 style={{ fontSize: '1.18rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                {role === 'student' && `Student Employability & Skill Intelligence: ${activeStudent?.name}`}
+                {role === 'spoc' && "Academia SPOC Command Center & Curriculum Radar"}
+                {role === 'recruiter' && "Industry Talent Acquisition & Candidate Match Funnel"}
+                {role === 'ministry' && "National Skill Directorate — Apex Institutional Oversight"}
+              </h2>
             </div>
 
-            {/* Render Selected 3D Scene */}
-            {active3DView === 'bridge' && <SkillBridgeCanvas />}
-            {active3DView === 'constellation' && <SkillConstellation3D />}
-            {active3DView === 'anatomy' && <AnatomyHologram3D />}
+            {/* Quick Action Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {role === 'student' && (
+                <>
+                  <button
+                    onClick={() => setIsAssessmentModalOpen(true)}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.78rem', padding: '6px 14px' }}
+                  >
+                    <Brain size={14} /> Take Skill Assessment
+                  </button>
+                  <button
+                    onClick={() => setIsInternshipModalOpen(true)}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.78rem', padding: '6px 14px' }}
+                  >
+                    <Clock size={14} /> Active Internship Log
+                  </button>
+                </>
+              )}
+
+              {/* Navigation Tabs */}
+              <div style={{
+                display: 'flex',
+                background: 'rgba(255, 255, 255, 0.04)',
+                borderRadius: '8px',
+                padding: '3px',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  style={{
+                    border: 'none',
+                    background: activeTab === 'dashboard' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
+                    color: activeTab === 'dashboard' ? '#34d399' : 'var(--text-muted)',
+                    fontWeight: activeTab === 'dashboard' ? 'bold' : 'normal',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.76rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <LayoutDashboard size={13} /> Dashboard
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('collaboration')}
+                  style={{
+                    border: 'none',
+                    background: activeTab === 'collaboration' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                    color: activeTab === 'collaboration' ? '#38bdf8' : 'var(--text-muted)',
+                    fontWeight: activeTab === 'collaboration' ? 'bold' : 'normal',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.76rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Users size={13} /> Collaboration Hub
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('learning')}
+                  style={{
+                    border: 'none',
+                    background: activeTab === 'learning' ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                    color: activeTab === 'learning' ? '#fbbf24' : 'var(--text-muted)',
+                    fontWeight: activeTab === 'learning' ? 'bold' : 'normal',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.76rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <BookOpen size={13} /> Industry Programs
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Dynamic Role-Based Experience View */}
+        {/* Tab Content Display */}
         <section>
-          {role === 'student' && <StudentDashboard />}
-          {role === 'spoc' && <SpocDashboard />}
-          {role === 'recruiter' && <RecruiterDashboard />}
-          {role === 'ministry' && <MinistryDashboard />}
+          {activeTab === 'dashboard' && (
+            <>
+              {role === 'student' && <StudentDashboard onOpenAssessment={() => setIsAssessmentModalOpen(true)} onOpenInternship={() => setIsInternshipModalOpen(true)} />}
+              {role === 'spoc' && <SpocDashboard />}
+              {role === 'recruiter' && <RecruiterDashboard />}
+              {role === 'ministry' && <MinistryDashboard />}
+            </>
+          )}
+
+          {activeTab === 'collaboration' && <CollaborationHub />}
+
+          {activeTab === 'learning' && <LearningProgramsSection />}
         </section>
       </main>
 
@@ -79,8 +183,8 @@ export default function App() {
       <footer style={{
         borderTop: '1px solid var(--border-subtle)',
         background: 'rgba(7, 12, 14, 0.95)',
-        padding: '24px',
-        marginTop: '60px'
+        padding: '20px 24px',
+        marginTop: '50px'
       }}>
         <div className="app-container" style={{ padding: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
           <div>
@@ -103,6 +207,17 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Interactive Feature Modals */}
+      <SkillAssessmentModal
+        isOpen={isAssessmentModalOpen}
+        onClose={() => setIsAssessmentModalOpen(false)}
+      />
+
+      <InternshipProgressModal
+        isOpen={isInternshipModalOpen}
+        onClose={() => setIsInternshipModalOpen(false)}
+      />
 
       <NotificationToast />
     </div>

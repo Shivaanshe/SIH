@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useData } from '../../context/DataContext';
+import AuthModal from '../auth/AuthModal';
 import {
   GraduationCap,
   Building2,
@@ -10,11 +11,12 @@ import {
   Layers,
   Sun,
   Moon,
-  Compass,
-  Boxes
+  User
 } from 'lucide-react';
 
 export default function Header() {
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const {
     role,
     setRole,
@@ -22,8 +24,6 @@ export default function Header() {
     setDomainPack,
     theme,
     setTheme,
-    active3DView,
-    setActive3DView,
     addNotification
   } = useApp();
 
@@ -180,7 +180,7 @@ export default function Header() {
           </button>
         </nav>
 
-        {/* Right Controls: Domain Switcher & 3D Mode & Theme */}
+        {/* Right Controls: Domain Switcher & Theme */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* Domain Pack Switcher (AYUSH vs Tech) */}
           <div style={{
@@ -209,7 +209,7 @@ export default function Header() {
               }}
               title="Flagship AYUSH Domain Pack (Ministry of Ayush / AIIA)"
             >
-              🌿 AYUSH Pack
+              🌿 AYUSH
             </button>
             <button
               onClick={() => handleDomainChange('tech')}
@@ -227,91 +227,37 @@ export default function Header() {
                 gap: '4px',
                 transition: 'all 0.2s'
               }}
-              title="Generic Tech Domain Pack (Scalability Demo)"
+              title="Tech Domain Pack"
             >
-              💻 Tech Pack
+              💻 Tech
             </button>
           </div>
 
-          {/* 3D View Mode Switcher */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '3px'
-          }}>
-            <button
-              onClick={() => setActive3DView('bridge')}
-              style={{
-                border: 'none',
-                background: active3DView === 'bridge' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                color: active3DView === 'bridge' ? '#34d399' : 'var(--text-muted)',
-                padding: '5px 8px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              title="3D KaushalSetu Bridge Hero"
-            >
-              <Compass size={13} /> Bridge 3D
-            </button>
-            <button
-              onClick={() => setActive3DView('constellation')}
-              style={{
-                border: 'none',
-                background: active3DView === 'constellation' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                color: active3DView === 'constellation' ? '#34d399' : 'var(--text-muted)',
-                padding: '5px 8px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              title="3D Spatial Skill Constellation"
-            >
-              <Boxes size={13} /> Galaxy 3D
-            </button>
-            {domainPack === 'ayush' && (
-              <button
-                onClick={() => setActive3DView('anatomy')}
-                style={{
-                  border: 'none',
-                  background: active3DView === 'anatomy' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                  color: active3DView === 'anatomy' ? '#34d399' : 'var(--text-muted)',
-                  padding: '5px 8px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '0.75rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                title="3D Marma & Clinical Anatomy Diagnostic"
-              >
-                🧬 Clinical 3D
-              </button>
-            )}
-          </div>
+          {/* User Profile & Auth Trigger */}
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Switch User Identity or Authenticate"
+          >
+            <User size={13} color="#10b981" />
+            <span style={{ textTransform: 'capitalize' }}>{role} Access</span>
+          </button>
 
-          {/* Theme Toggle */}
+          {/* Theme Switcher */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="btn btn-secondary"
-            style={{ padding: '6px', borderRadius: '8px', minWidth: '32px', minHeight: '32px' }}
+            style={{ padding: '6px 8px', borderRadius: '8px', minWidth: '32px', minHeight: '32px' }}
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
             aria-label="Toggle Theme"
           >
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
           </button>
         </div>
       </div>
+
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </header>
   );
 }

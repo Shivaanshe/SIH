@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import MetricCard from '../common/MetricCard';
 import CurriculumActionModal from './CurriculumActionModal';
 import EndorseStudentModal from './EndorseStudentModal';
+import FacultyFdpSection from './FacultyFdpSection';
 import {
   Users,
   GraduationCap,
@@ -13,13 +14,15 @@ import {
   Award,
   Search,
   CheckCircle,
-  Building
+  Building,
+  Briefcase
 } from 'lucide-react';
 
 export default function SpocDashboard() {
   const { students, batchCurriculumGaps, institutions } = useData();
   const { domainPack } = useApp();
 
+  const [activeSpocTab, setActiveSpocTab] = useState('curriculum'); // 'curriculum' or 'fdp'
   const [selectedStudentForEndorse, setSelectedStudentForEndorse] = useState(null);
   const [isCurriculumModalOpen, setIsCurriculumModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,13 +60,39 @@ export default function SpocDashboard() {
           </div>
         </div>
 
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => setIsCurriculumModalOpen(true)}
+            className="btn btn-primary"
+          >
+            <Radar size={16} /> Generate Curriculum Action Plan
+          </button>
+        </div>
+      </div>
+
+      {/* Academia Tab Navigation */}
+      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
         <button
-          onClick={() => setIsCurriculumModalOpen(true)}
-          className="btn btn-primary"
+          onClick={() => setActiveSpocTab('curriculum')}
+          className={`btn ${activeSpocTab === 'curriculum' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.84rem', padding: '8px 16px' }}
         >
-          <Radar size={16} /> Generate Curriculum Action Plan
+          <Radar size={15} /> Student Cohort & Curriculum Gap Radar
+        </button>
+
+        <button
+          onClick={() => setActiveSpocTab('fdp')}
+          className={`btn ${activeSpocTab === 'fdp' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.84rem', padding: '8px 16px' }}
+        >
+          <Briefcase size={15} /> Faculty FDPs, Residencies & Research Grants
         </button>
       </div>
+
+      {activeSpocTab === 'fdp' ? (
+        <FacultyFdpSection />
+      ) : (
+        <>
 
       {/* Metrics Row */}
       <div className="grid-metrics">
@@ -265,6 +294,8 @@ export default function SpocDashboard() {
           })}
         </div>
       </div>
+      </>
+      )}
 
       <CurriculumActionModal
         isOpen={isCurriculumModalOpen}

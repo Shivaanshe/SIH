@@ -5,6 +5,12 @@ import { seedPostings } from '../data/seedPostings';
 import { seedInstitutions } from '../data/seedInstitutions';
 import { ayushTaxonomy } from '../data/ayushTaxonomy';
 import { techTaxonomy } from '../data/techTaxonomy';
+import {
+  seedFdpPrograms,
+  seedCollaborationItems,
+  seedLearningPrograms,
+  seedInternshipProgress
+} from '../data/seedCollaboration';
 import { calculateMatchScore } from '../engine/matchingEngine';
 import { computeCurriculumGapRadar, computeGapAnalysis } from '../engine/gapAnalysis';
 
@@ -16,6 +22,12 @@ export function DataProvider({ children }) {
   const [students, setStudents] = useState(seedStudents);
   const [postings, setPostings] = useState(seedPostings);
   const [institutions] = useState(seedInstitutions);
+
+  // New official feature datasets
+  const [fdpPrograms, setFdpPrograms] = useState(seedFdpPrograms);
+  const [collaborationItems, setCollaborationItems] = useState(seedCollaborationItems);
+  const [learningPrograms, setLearningPrograms] = useState(seedLearningPrograms);
+  const [internshipProgress, setInternshipProgress] = useState(seedInternshipProgress);
 
   // Backend connection and database state
   const [dbStatus, setDbStatus] = useState({
@@ -265,6 +277,92 @@ export function DataProvider({ children }) {
     addNotification("Opportunity Published", `Successfully posted "${newPost.title}". Live on student feeds.`, "emerald");
   };
 
+  // 1. Skill Assessment Completion Handler
+  const completeSkillAssessment = (assessmentResult) => {
+    if (!activeStudent) return;
+
+    setStudents(prev => prev.map(s => {
+      if (s.id === activeStudent.id) {
+        const currentSkills = [...(s.skills || [])];
+
+        // Merge or update verified skills
+        (assessmentResult.verifiedSkills || []).forEach(vSkill => {
+          const existingIdx = currentSkills.findIndex(sk => sk.skillId === vSkill.skillId);
+          if (existingIdx !== -1) {
+            currentSkills[existingIdx] = {
+              ...currentSkills[existingIdx],
+              level: Math.max(currentSkills[existingIdx].level, vSkill.level),
+              verified: true,
+              endorsedBy: vSkill.endorsedBy
+            };
+          } else {
+            currentSkills.push(vSkill);
+          }
+        });
+
+        // Boost verification confidence
+        const newConfidence = Math.min(0.95, (s.verificationConfidence || 0.6) + 0.20);
+
+        return {
+          ...s,
+          skills: currentSkills,
+          verificationConfidence: Number(newConfidence.toFixed(2))
+        };
+      }
+      return s;
+    }));
+  };
+
+  // 2. Faculty FDP Application Handler
+  const applyToFdp = (fdpId) => {
+    setFdpPrograms(prev => prev.map(f => {
+      if (f.id === fdpId) {
+        return { ...f, applicantsCount: (f.applicantsCount || 0) + 1 };
+      }
+      return f;
+    }));
+  };
+
+  // 3. Mentorship Slot Booking Handler
+  const bookMentorshipSlot = (collabId) => {
+    setCollaborationItems(prev => prev.map(c => {
+      if (c.id === collabId && c.slotsAvailable > 0) {
+        return { ...c, slotsAvailable: c.slotsAvailable - 1 };
+      }
+      return c;
+    }));
+  };
+
+  // 4. Learning Program Enrollment Handler
+  const enrollInLearningProgram = (program) => {
+    setLearningPrograms(prev => prev.map(p => {
+      if (p.id === program.id) {
+        return { ...p, enrolledCount: (p.enrolledCount || 0) + 1 };
+      }
+      return p;
+    }));
+  };
+
+  // 5. Internship Progress Milestone Submission Handler
+  const submitInternshipMilestone = ({ title, notes }) => {
+    if (!internshipProgress) return;
+
+    const newMilestone = {
+      weekNumber: (internshipProgress.milestones?.length || 0) + 1,
+      title,
+      status: "Under Review",
+      submittedDate: new Date().toISOString().split('T')[0],
+      mentorFeedback: notes || "Milestone submitted to industry mentor for evaluation."
+    };
+
+    setInternshipProgress(prev => ({
+      ...prev,
+      currentWeek: prev.currentWeek + 1,
+      overallProgressPercent: Math.min(100, prev.overallProgressPercent + 10),
+      milestones: [newMilestone, ...(prev.milestones || [])]
+    }));
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -283,7 +381,16 @@ export function DataProvider({ children }) {
         createJobPosting,
         dbStatus,
         dataSource,
-        seedDatabaseNow
+        seedDatabaseNow,
+        fdpPrograms,
+        collaborationItems,
+        learningPrograms,
+        internshipProgress,
+        completeSkillAssessment,
+        applyToFdp,
+        bookMentorshipSlot,
+        enrollInLearningProgram,
+        submitInternshipMilestone
       }}
     >
       {children}
