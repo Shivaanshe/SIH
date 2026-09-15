@@ -14,11 +14,13 @@ import {
   Briefcase,
   Layers,
   ChevronRight,
-  Filter
+  Filter,
+  Send
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export default function StudentDashboard({ onOpenAssessment, onOpenInternship }) {
-  const { activeStudent, studentMatches, postings } = useData();
+  const { activeStudent, studentMatches, postings, applyToPosting } = useData();
   const { domainPack } = useApp();
 
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'applications', 'profile'
@@ -307,13 +309,37 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setSelectedMatch({ posting, matchResult, gaps })}
-                    className="btn btn-primary"
-                    style={{ fontSize: '0.82rem', padding: '10px 18px' }}
-                  >
-                    View Diagnostic <ChevronRight size={15} />
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {isApplied ? (
+                      <button
+                        disabled
+                        className="btn btn-secondary"
+                        style={{ fontSize: '0.8rem', padding: '8px 16px', opacity: 0.85, cursor: 'default' }}
+                      >
+                        <CheckCircle2 size={14} color="#10b981" /> Registered / Applied
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          applyToPosting(posting.id);
+                          confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
+                        }}
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.8rem', padding: '8px 16px' }}
+                      >
+                        <Send size={13} /> Quick Register
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setSelectedMatch({ posting, matchResult, gaps })}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.78rem', padding: '7px 14px' }}
+                    >
+                      View Diagnostic <ChevronRight size={13} />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
