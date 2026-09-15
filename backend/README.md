@@ -3,7 +3,7 @@
 **Stack:** Node.js, Express, MongoDB (Mongoose), JWT Authentication
 
 ---
-## vaibhav
+
 ## 🚀 Quick Start for Teammate
 Aviral yadav
 
