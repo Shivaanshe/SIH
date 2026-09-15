@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { seedStudents } from '../data/seedStudents';
 import { seedPostings } from '../data/seedPostings';
@@ -16,6 +16,90 @@ export function DataProvider({ children }) {
   const [students, setStudents] = useState(seedStudents);
   const [postings, setPostings] = useState(seedPostings);
   const [institutions] = useState(seedInstitutions);
+
+  // Backend connection and database state
+  const [dbStatus, setDbStatus] = useState({
+    checked: false,
+    hasData: false,
+    isOffline: true,
+    counts: { students: 0, jobs: 0, skills: 0 }
+  });
+  const [dataSource, setDataSource] = useState('seed'); // 'api' or 'seed'
+
+  // Check backend & database status on mount
+  useEffect(() => {
+    async function checkStatus() {
+      try {
+        const res = await fetch('http://localhost:5000/api/seed/status');
+        if (res.ok) {
+          const data = await res.json();
+          setDbStatus({
+            checked: true,
+            hasData: Boolean(data.hasData),
+            isOffline: false,
+            counts: data.counts || { students: 0, jobs: 0, skills: 0 }
+          });
+
+          // If database already contains data, fetch live records
+          if (data.hasData) {
+            setDataSource('api');
+            const [jobsRes, studentsRes] = await Promise.allSettled([
+              fetch('http://localhost:5000/api/jobs'),
+              fetch('http://localhost:5000/api/spoc/cohort')
+            ]);
+
+            if (jobsRes.status === 'fulfilled' && jobsRes.value.ok) {
+              const jobsData = await jobsRes.value.json();
+              if (jobsData.postings && jobsData.postings.length > 0) {
+                setPostings(jobsData.postings);
+              }
+            }
+
+            if (studentsRes.status === 'fulfilled' && studentsRes.value.ok) {
+              const studsData = await studentsRes.value.json();
+              if (studsData.students && studsData.students.length > 0) {
+                setStudents(studsData.students);
+              }
+            }
+          }
+        } else {
+          setDbStatus(prev => ({ ...prev, checked: true, isOffline: true }));
+        }
+      } catch (err) {
+        // Backend offline — keep using local fallback seed data safely
+        setDbStatus({
+          checked: true,
+          hasData: false,
+          isOffline: true,
+          counts: { students: 0, jobs: 0, skills: 0 }
+        });
+      }
+    }
+
+    checkStatus();
+  }, []);
+
+  // Action: Seed database when empty
+  const seedDatabaseNow = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/seed', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setDbStatus({
+          checked: true,
+          hasData: true,
+          isOffline: false,
+          counts: data.counts || { students: 2, jobs: 2, skills: 5 }
+        });
+        setDataSource('api');
+        addNotification("Database Seeded", "Successfully initialized database with AYUSH & Tech baseline records.", "emerald");
+      } else {
+        addNotification("Seeding Notice", data.message || "Could not seed database.", "amber");
+      }
+    } catch (err) {
+      addNotification("Backend Offline", "Start the backend server on port 5000 to seed MongoDB.", "rose");
+    }
+  };
 
   // Active student based on domain pack
   const activeStudent = useMemo(() => {
@@ -196,7 +280,10 @@ export function DataProvider({ children }) {
         updateApplicationStatus,
         endorseStudentSkill,
         updateStudentSkills,
-        createJobPosting
+        createJobPosting,
+        dbStatus,
+        dataSource,
+        seedDatabaseNow
       }}
     >
       {children}

@@ -27,7 +27,7 @@ export default function Header() {
     addNotification
   } = useApp();
 
-  const { activeStudent } = useData();
+  const { activeStudent, dbStatus, seedDatabaseNow } = useData();
 
   const handleDomainChange = (newPack) => {
     setDomainPack(newPack);
@@ -68,6 +68,37 @@ export default function Header() {
           <span style={{ color: '#34d399' }}>Ministry of Ayush & All India Institute of Ayurveda (AIIA)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* CONDITIONAL SEEDER: ONLY SHOWS WHEN WE DON'T HAVE DATA */}
+          {!dbStatus?.hasData && (
+            <button
+              onClick={seedDatabaseNow}
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                border: '1px solid rgba(52, 211, 153, 0.5)',
+                borderRadius: '6px',
+                padding: '2px 8px',
+                fontSize: '0.68rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: '0 0 10px rgba(16, 185, 129, 0.35)',
+                animation: 'pulse 2s infinite'
+              }}
+              title="Zero-data detected in backend. Click to seed initial AYUSH & Tech baseline records."
+            >
+              🌱 Seed Database
+            </button>
+          )}
+
+          {dbStatus?.hasData && (
+            <span style={{ fontSize: '0.68rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              ● Live Database Ready
+            </span>
+          )}
+
           <span className="mono" style={{ fontSize: '0.7rem', color: '#fbbf24' }}>
             DPI: APAAR & DigiLocker Connected
           </span>
