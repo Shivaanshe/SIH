@@ -21,7 +21,29 @@ export function DataProvider({ children }) {
 
   const [students, setStudents] = useState(seedStudents);
   const [postings, setPostings] = useState(seedPostings);
-  const [institutions] = useState(seedInstitutions);
+  const [institutions, setInstitutions] = useState(seedInstitutions);
+  const [directives, setDirectives] = useState([
+    {
+      id: "dir-01",
+      title: "Mandatory Clinical Trials & GCP Compliance Protocol (Schedule Y / Ayush GCP)",
+      target: "All 482 Affiliated BAMS Institutions",
+      domainPack: "ayush",
+      issuedAt: "Sept 2026",
+      status: "Active",
+      skillsImpacted: ["Clinical Trial Documentation & AYUSH GCP", "Schedule T & GMP Regulations"],
+      adoptedInstitutions: ["inst-aiia-01"]
+    },
+    {
+      id: "dir-02",
+      title: "Mandatory Cloud Architecture & Microservices Certification",
+      target: "All 850 Affiliated Engineering Colleges",
+      domainPack: "tech",
+      issuedAt: "Aug 2026",
+      status: "Active",
+      skillsImpacted: ["Cloud Architecture & AWS/GCP", "Docker & Kubernetes"],
+      adoptedInstitutions: ["inst-dtu-04"]
+    }
+  ]);
 
   // Official collaboration, FDP, learning & internship datasets
   const [fdpPrograms, setFdpPrograms] = useState(seedFdpPrograms);
@@ -197,8 +219,8 @@ export function DataProvider({ children }) {
   // Batch Curriculum Gap Radar for SPOC
   const batchCurriculumGaps = useMemo(() => {
     const domainStudents = students.filter(s => s.domainPack === domainPack);
-    return computeCurriculumGapRadar(domainStudents, activePostings, domainPack);
-  }, [students, activePostings, domainPack]);
+    return computeCurriculumGapRadar(domainStudents, activePostings, domainPack, directives);
+  }, [students, activePostings, domainPack, directives]);
 
   // Apply to opportunity
   const applyToPosting = (postingId) => {
@@ -442,6 +464,50 @@ export function DataProvider({ children }) {
     }));
   };
 
+  // 6. National Policy Directive Handlers
+  const addDirective = (directive) => {
+    const newDir = {
+      id: `dir-${Date.now()}`,
+      title: directive.title,
+      target: directive.target || (domainPack === 'ayush' ? 'All 482 Affiliated BAMS Institutions' : 'All 850 Affiliated Engineering Colleges'),
+      domainPack: directive.domainPack || domainPack,
+      issuedAt: 'Just Now',
+      status: 'Active',
+      skillsImpacted: directive.skillsImpacted || [directive.title],
+      adoptedInstitutions: []
+    };
+    setDirectives(prev => [newDir, ...prev]);
+    addNotification("National Directive Broadcast", `Ministry issued: "${newDir.title}". Transmitted to all college SPOC radars.`, "emerald");
+    return newDir;
+  };
+
+  const adoptDirective = (directiveId, institutionId = 'inst-aiia-01') => {
+    setDirectives(prev => prev.map(d => {
+      if (d.id === directiveId) {
+        const adopted = d.adoptedInstitutions || [];
+        if (!adopted.includes(institutionId)) {
+          return { ...d, adoptedInstitutions: [...adopted, institutionId] };
+        }
+      }
+      return d;
+    }));
+    addNotification("Curriculum Directive Adopted", "Syllabus revision initiated. Course modules scheduled for upcoming semester.", "emerald");
+  };
+
+  const updateStudentInstitution = (studentId, inst) => {
+    setStudents(prev => prev.map(s => {
+      if (s.id === studentId) {
+        return {
+          ...s,
+          institutionId: inst.id,
+          institutionName: `${inst.name}, ${inst.location}`
+        };
+      }
+      return s;
+    }));
+    addNotification("Institution Updated", `Affiliated with ${inst.name}.`, "emerald");
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -449,6 +515,10 @@ export function DataProvider({ children }) {
         postings: activePostings,
         allPostings: postings,
         institutions,
+        directives,
+        addDirective,
+        adoptDirective,
+        updateStudentInstitution,
         activeStudent,
         activeTaxonomy,
         studentMatches,

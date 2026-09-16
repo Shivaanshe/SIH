@@ -20,7 +20,7 @@ import {
 import confetti from 'canvas-confetti';
 
 export default function StudentDashboard({ onOpenAssessment, onOpenInternship }) {
-  const { activeStudent, studentMatches, postings, applyToPosting } = useData();
+  const { activeStudent, studentMatches, postings, applyToPosting, directives } = useData();
   const { domainPack } = useApp();
 
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'applications', 'profile'
@@ -133,41 +133,56 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
-            {top3Gaps.map((gap) => (
-              <div
-                key={gap.skillId}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 14px'
-                }}
-              >
-                <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{gap.skillName}</div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Required in {gap.importance === 'must-have' ? 'Mandatory' : 'Optional'} role postings
+            {top3Gaps.map((gap) => {
+              const isDirectiveSkill = (directives || []).some(d =>
+                (!d.domainPack || d.domainPack === domainPack) &&
+                ((d.title || '').toLowerCase().includes((gap.skillName || '').toLowerCase()) ||
+                 (gap.skillName || '').toLowerCase().includes((d.title || '').toLowerCase()) ||
+                 (d.skillsImpacted || []).some(s => s.toLowerCase().includes((gap.skillName || '').toLowerCase())))
+              );
+              return (
+                <div
+                  key={gap.skillId}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: isDirectiveSkill ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '10px 14px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{gap.skillName}</div>
+                    {isDirectiveSkill && (
+                      <span className="glass-pill badge-emerald" style={{ fontSize: '0.62rem', background: 'rgba(16, 185, 129, 0.2)' }}>
+                        👑 Ministry Priority
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Required in {gap.importance === 'must-have' ? 'Mandatory' : 'Optional'} role postings
+                  </div>
+                  {gap.resources?.[0] && (
+                    <a
+                      href={gap.resources[0].url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: '#34d399',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        marginTop: '6px',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      📖 {gap.resources[0].title.slice(0, 32)}...
+                    </a>
+                  )}
                 </div>
-                {gap.resources?.[0] && (
-                  <a
-                    href={gap.resources[0].url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      color: '#34d399',
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      marginTop: '6px',
-                      textDecoration: 'none'
-                    }}
-                  >
-                    📖 {gap.resources[0].title.slice(0, 32)}...
-                  </a>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

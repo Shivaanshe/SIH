@@ -138,9 +138,13 @@ export function AppProvider({ children }) {
 
     // Resilient Fallback for shiv@123 / 123 or valid credentials
     if ((email.trim().toLowerCase() === 'shiv@123' && password === '123') || (email && password)) {
+      const rawPrefix = email.split('@')[0].replace(/[._0-9]/g, ' ').trim();
+      const extractedName = rawPrefix 
+        ? rawPrefix.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+        : 'Dhruv';
       const fallbackUser = {
-        id: 'user-shiv-01',
-        name: email.toLowerCase().includes('shiv') ? 'Shiv Sharma' : 'Authorized Stakeholder',
+        id: `user-${email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || '01'}`,
+        name: email.toLowerCase().includes('shiv') ? 'Shiv Sharma' : extractedName,
         email: email.trim(),
         role: targetRole,
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'

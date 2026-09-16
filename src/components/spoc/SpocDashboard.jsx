@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import { useApp } from '../../context/AppContext';
 import MetricCard from '../common/MetricCard';
@@ -15,11 +15,13 @@ import {
   Search,
   CheckCircle,
   Building,
-  Briefcase
+  Briefcase,
+  Layers,
+  ChevronDown
 } from 'lucide-react';
 
 export default function SpocDashboard() {
-  const { students, batchCurriculumGaps, institutions } = useData();
+  const { students, batchCurriculumGaps, institutions, directives, adoptDirective } = useData();
   const { domainPack } = useApp();
 
   const [activeSpocTab, setActiveSpocTab] = useState('curriculum'); // 'curriculum' or 'fdp'
@@ -27,9 +29,18 @@ export default function SpocDashboard() {
   const [isCurriculumModalOpen, setIsCurriculumModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter students for active domain
+  // Filter institutions and students for active domain
+  const domainInstitutions = institutions.filter(i => i.domainPack === domainPack);
+  const [selectedInstId, setSelectedInstId] = useState(domainInstitutions[0]?.id || institutions[0]?.id);
+
+  useEffect(() => {
+    const firstForDomain = institutions.find(i => i.domainPack === domainPack);
+    if (firstForDomain) setSelectedInstId(firstForDomain.id);
+  }, [domainPack, institutions]);
+
+  const activeInstitution = institutions.find(i => i.id === selectedInstId) || domainInstitutions[0] || institutions[0];
+  const domainDirectives = (directives || []).filter(d => !d.domainPack || d.domainPack === domainPack);
   const domainStudents = students.filter(s => s.domainPack === domainPack);
-  const activeInstitution = institutions.find(i => i.domainPack === domainPack) || institutions[0];
 
   const filteredStudents = domainStudents.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -52,8 +63,31 @@ export default function SpocDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '1.5rem' }}>🏛️</span>
             <div>
-              <h2 style={{ fontSize: '1.3rem' }}>{activeInstitution.name}</h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '1.3rem' }}>{activeInstitution.name}</h2>
+                <select
+                  value={activeInstitution.id}
+                  onChange={(e) => setSelectedInstId(e.target.value)}
+                  style={{
+                    padding: '4px 10px',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: '#34d399',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                  title="Switch Institution View"
+                >
+                  {domainInstitutions.map((inst) => (
+                    <option key={inst.id} value={inst.id} style={{ background: '#0f172a', color: '#fff' }}>
+                      {inst.name} ({inst.location})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                 SPOC: <strong>{activeInstitution.spocName}</strong> ({activeInstitution.spocDesignation}) • Accreditation: <span style={{ color: '#34d399' }}>{activeInstitution.accreditation}</span>
               </p>
             </div>
@@ -126,6 +160,67 @@ export default function SpocDashboard() {
         />
       </div>
 
+      {/* National Ministry Directives & Syllabus Mandates (Live Feed) */}
+      {domainDirectives.length > 0 && (
+        <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #10b981', background: 'rgba(16, 185, 129, 0.04)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '1.4rem' }}>📜</span>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', color: '#f8fafc' }}>National Ministry Directives & Curriculum Mandates</h3>
+                <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  Mandatory syllabus guidelines dispatched by the Ministry Directorate to all affiliated institutions.
+                </p>
+              </div>
+            </div>
+            <span className="glass-pill badge-emerald" style={{ fontSize: '0.72rem' }}>
+              ● Live National Policy Feed
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {domainDirectives.map((dir) => {
+              const isAdopted = (dir.adoptedInstitutions || []).includes(activeInstitution.id);
+              return (
+                <div
+                  key={dir.id}
+                  style={{
+                    background: 'rgba(0, 0, 0, 0.25)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="glass-pill badge-emerald" style={{ fontSize: '0.68rem' }}>Ministry Mandate</span>
+                      <strong style={{ fontSize: '0.92rem', color: '#fff' }}>{dir.title}</strong>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Scope: <strong style={{ color: '#38bdf8' }}>{dir.target}</strong> • Enforced: {dir.issuedAt}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => adoptDirective(dir.id, activeInstitution.id)}
+                    disabled={isAdopted}
+                    className={`btn ${isAdopted ? 'btn-secondary' : 'btn-primary'}`}
+                    style={{ fontSize: '0.78rem', padding: '6px 14px' }}
+                  >
+                    {isAdopted ? '✅ Adopted into College Syllabus' : '📥 Adopt into College Syllabus'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Curriculum Gap Radar (PRD §10.3 Core Differentiator) */}
       <div className="glass-panel" style={{ padding: '24px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
@@ -151,7 +246,7 @@ export default function SpocDashboard() {
                 key={item.skillId}
                 style={{
                   background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border-subtle)',
+                  border: item.isMinistryMandated ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   padding: '14px 18px',
                   display: 'flex',
@@ -162,10 +257,15 @@ export default function SpocDashboard() {
                 }}
               >
                 <div style={{ flex: 1, minWidth: '240px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span className="mono" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>#{idx + 1}</span>
                     <strong style={{ fontSize: '0.92rem' }}>{item.name}</strong>
                     <span className="glass-pill" style={{ fontSize: '0.68rem' }}>{item.category}</span>
+                    {item.isMinistryMandated && (
+                      <span className="glass-pill badge-emerald" style={{ fontSize: '0.68rem', background: 'rgba(16, 185, 129, 0.25)', border: '1px solid #10b981' }}>
+                        👑 Ministry Mandate
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                     Average Batch Proficiency: <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{item.avgBatchProficiency} / 5.0</span>

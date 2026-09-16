@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import MetricCard from '../common/MetricCard';
 import { useApp } from '../../context/AppContext';
+import { useData } from '../../context/DataContext';
 import {
   ShieldCheck,
   Building,
@@ -41,19 +42,12 @@ const techStateData = [
 
 export default function MinistryDashboard() {
   const { domainPack, addNotification } = useApp();
+  const { directives, addDirective } = useData();
   const [filterStatus, setFilterStatus] = useState('All');
   const [isDirectiveModalOpen, setIsDirectiveModalOpen] = useState(false);
   const [directiveTopic, setDirectiveTopic] = useState('Schedule T GMP Regulations & Clinical Trial GCP');
-  const [activeDirectives, setActiveDirectives] = useState([
-    {
-      id: "dir-01",
-      title: "Mandatory Clinical Trials & GCP Compliance Protocol (Schedule Y / Ayush GCP)",
-      target: "All 482 Affiliated BAMS Institutions",
-      issuedAt: "Sept 2026",
-      status: "Active"
-    }
-  ]);
 
+  const domainDirectives = (directives || []).filter(d => !d.domainPack || d.domainPack === domainPack);
   const activeData = domainPack === 'ayush' ? ayushStateData : techStateData;
 
   const filteredData = activeData.filter(item => {
@@ -66,27 +60,18 @@ export default function MinistryDashboard() {
     e.preventDefault();
     if (!directiveTopic.trim()) return;
 
-    const newDirective = {
-      id: `dir-${Date.now()}`,
+    addDirective({
       title: directiveTopic.trim(),
-      target: domainPack === 'ayush' ? 'All 482 AYUSH Medical Colleges' : 'All 850 Technical Universities',
-      issuedAt: 'Just Now',
-      status: 'Active'
-    };
+      target: domainPack === 'ayush' ? 'All 482 Affiliated BAMS Institutions' : 'All 850 Affiliated Engineering Colleges',
+      domainPack
+    });
 
-    setActiveDirectives(prev => [newDirective, ...prev]);
     setIsDirectiveModalOpen(false);
     setDirectiveTopic('');
 
     try {
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
     } catch (err) {}
-
-    addNotification(
-      "National Skill Directive Published",
-      `Ministry of Ayush published directive: "${newDirective.title}". Dispatched across all institutions.`,
-      "emerald"
-    );
   };
 
   const handleGrantAllocation = (stateName, amount = "₹25 Lakhs") => {
@@ -214,7 +199,7 @@ export default function MinistryDashboard() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {activeDirectives.map((dir) => (
+          {domainDirectives.map((dir) => (
             <div
               key={dir.id}
               style={{

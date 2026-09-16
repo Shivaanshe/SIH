@@ -18,7 +18,7 @@ import {
 import ResumeUploadModal from './ResumeUploadModal';
 
 export default function ProfileEditor() {
-  const { activeStudent, updateStudentSkills, activeTaxonomy } = useData();
+  const { activeStudent, updateStudentSkills, activeTaxonomy, institutions, updateStudentInstitution } = useData();
   const { domainPack, addNotification } = useApp();
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [newSkillName, setNewSkillName] = useState('');
@@ -104,9 +104,36 @@ export default function ProfileEditor() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
               {activeStudent.degree} • {activeStudent.year}
             </p>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              🏛️ {activeStudent.institutionName} • Student ID: <strong style={{ color: '#e2e8f0' }}>{activeStudent.id}</strong>
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>🏛️ Institution:</span>
+              <select
+                value={activeStudent.institutionId || ''}
+                onChange={(e) => {
+                  const inst = institutions.find(i => i.id === e.target.value);
+                  if (inst) updateStudentInstitution(activeStudent.id, inst);
+                }}
+                style={{
+                  padding: '3px 8px',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: '#38bdf8',
+                  fontSize: '0.76rem',
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+                title="Change Affiliated University"
+              >
+                {institutions.filter(i => i.domainPack === domainPack).map((inst) => (
+                  <option key={inst.id} value={inst.id} style={{ background: '#0f172a', color: '#fff' }}>
+                    {inst.name} ({inst.location})
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                • Student ID: <strong style={{ color: '#e2e8f0' }}>{activeStudent.id}</strong>
+              </span>
+            </div>
           </div>
         </div>
 

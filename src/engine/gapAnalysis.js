@@ -57,15 +57,13 @@ export function computeGapAnalysis(student, posting, domainPack = "ayush") {
 }
 
 /**
- * Aggregates batch-wide curriculum gaps across an institution's students vs. active postings (PRD §10.3)
+ * Aggregates batch-wide curriculum gaps across an institution's students vs. active postings & ministry directives (PRD §10.3)
  */
-export function computeCurriculumGapRadar(students, postings, domainPack = "ayush") {
+export function computeCurriculumGapRadar(students, postings, domainPack = "ayush", directives = []) {
   const taxonomy = domainPack === "ayush" ? ayushTaxonomy : techTaxonomy;
-  const taxonomyMap = new Map();
-  taxonomy.forEach(t => taxonomyMap.set(t.id, t));
-
   const skillDeficiencyMap = new Map();
 
+  // Populate base taxonomy
   taxonomy.forEach(t => {
     skillDeficiencyMap.set(t.id, {
       skillId: t.id,
@@ -76,28 +74,105 @@ export function computeCurriculumGapRadar(students, postings, domainPack = "ayus
       industryDemandCount: 0,
       avgBatchProficiency: 0,
       deficiencyRate: 0,
-      leverageScore: 0
+      leverageScore: 0,
+      isMinistryMandated: false,
+      directiveTitle: null
     });
   });
 
-  // 1. Calculate how many postings require this skill
+  // 1. Calculate how many postings require this skill (including custom HR skills)
   postings.forEach(p => {
     (p.requiredSkills || []).forEach(req => {
+      let matchedKey = null;
       if (skillDeficiencyMap.has(req.skillId)) {
-        const item = skillDeficiencyMap.get(req.skillId);
+        matchedKey = req.skillId;
+      } else {
+        // Match by name or substring
+        for (const [key, item] of skillDeficiencyMap.entries()) {
+          const reqName = (req.name || '').toLowerCase();
+          const itemName = item.name.toLowerCase();
+          if (reqName && (itemName.includes(reqName) || reqName.includes(itemName))) {
+            matchedKey = key;
+            break;
+          }
+        }
+      }
+
+      if (matchedKey) {
+        const item = skillDeficiencyMap.get(matchedKey);
         item.industryDemandCount += (req.importance === "must-have" ? 2 : 1);
+      } else if (req.name) {
+        // Register custom skill added by HR into the college radar
+        const customId = req.skillId || `custom-${req.name.toLowerCase().replace(/\s+/g, '-')}`;
+        skillDeficiencyMap.set(customId, {
+          skillId: customId,
+          name: req.name,
+          category: req.category || 'Industry Emerging',
+          batchDeficientCount: 0,
+          totalStudentsEvaluated: students.length,
+          industryDemandCount: req.importance === "must-have" ? 2 : 1,
+          avgBatchProficiency: 0,
+          deficiencyRate: 0,
+          leverageScore: 0,
+          isMinistryMandated: false,
+          directiveTitle: null
+        });
       }
     });
   });
 
-  // 2. Calculate student proficiencies & deficiencies
+  // 2. Inject Ministry Directives into Demand Pipeline
+  (directives || []).forEach(dir => {
+    if (dir.domainPack && dir.domainPack !== domainPack) return;
+    const dirLower = (dir.title || '').toLowerCase();
+
+    let foundMatch = false;
+    for (const [, item] of skillDeficiencyMap.entries()) {
+      const itemName = item.name.toLowerCase();
+      // Check if directive mentions this skill or vice versa
+      const words = itemName.split(/[\s,&/-]+/).filter(w => w.length > 3);
+      const matchesWord = words.some(w => dirLower.includes(w));
+
+      if (dirLower.includes(itemName) || itemName.includes(dirLower) || matchesWord) {
+        item.isMinistryMandated = true;
+        item.directiveTitle = dir.title;
+        item.industryDemandCount += 3; // Ministry directives give highest national weight
+        foundMatch = true;
+      }
+    }
+
+    // If directive introduces an entirely new mandatory domain topic
+    if (!foundMatch && dir.title) {
+      const dirId = `mandate-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      skillDeficiencyMap.set(dirId, {
+        skillId: dirId,
+        name: dir.title,
+        category: 'National Policy Mandate',
+        batchDeficientCount: students.length, // Unprepared by default
+        totalStudentsEvaluated: students.length,
+        industryDemandCount: 4, // Maximum multiplier
+        avgBatchProficiency: 1.0,
+        deficiencyRate: 95,
+        leverageScore: 90,
+        isMinistryMandated: true,
+        directiveTitle: dir.title
+      });
+    }
+  });
+
+  // 3. Calculate student proficiencies & deficiencies
   students.forEach(stud => {
     const studentSkillMap = new Map();
-    (stud.skills || []).forEach(s => studentSkillMap.set(s.skillId, s.level));
+    (stud.skills || []).forEach(s => {
+      studentSkillMap.set(s.skillId, s.level);
+      if (s.name) studentSkillMap.set(s.name.toLowerCase(), s.level);
+    });
 
-    taxonomy.forEach(t => {
-      const level = studentSkillMap.get(t.id) || 0;
-      const item = skillDeficiencyMap.get(t.id);
+    skillDeficiencyMap.forEach((item, key) => {
+      let level = studentSkillMap.get(key) || 0;
+      if (!level && item.name) {
+        level = studentSkillMap.get(item.name.toLowerCase()) || 0;
+      }
       item.avgBatchProficiency += level;
       if (level < 3) {
         item.batchDeficientCount += 1;
@@ -105,12 +180,12 @@ export function computeCurriculumGapRadar(students, postings, domainPack = "ayus
     });
   });
 
-  // 3. Finalize rates and leverage scores
+  // 4. Finalize rates and leverage scores
   const results = [];
   skillDeficiencyMap.forEach(item => {
     const total = students.length || 1;
     item.avgBatchProficiency = (item.avgBatchProficiency / total).toFixed(1);
-    item.deficiencyRate = Math.round((item.batchDeficientCount / total) * 100);
+    item.deficiencyRate = Math.min(100, Math.round((item.batchDeficientCount / total) * 100));
     // Leverage score = industry demand frequency * deficiency rate
     item.leverageScore = Math.round((item.industryDemandCount * item.deficiencyRate) / 10);
     results.push(item);
