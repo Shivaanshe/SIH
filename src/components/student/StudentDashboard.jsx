@@ -15,7 +15,8 @@ import {
   Layers,
   ChevronRight,
   Filter,
-  Send
+  Send,
+  XCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -246,7 +247,9 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
       {activeTab === 'feed' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {filteredMatches.map(({ posting, matchResult, gaps }) => {
-            const isApplied = (activeStudent.appliedPostings || []).some(a => a.postingId === posting.id);
+            const appRecord = (activeStudent.appliedPostings || []).find(a => a.postingId === posting.id);
+            const isApplied = Boolean(appRecord);
+            const appStatus = appRecord?.status;
             const scoreColor = matchResult.matchPercent >= 80 ? '#10b981' : matchResult.matchPercent >= 60 ? '#f59e0b' : '#f43f5e';
 
             return (
@@ -260,7 +263,7 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: '20px',
-                  borderLeft: `5px solid ${scoreColor}`
+                  borderLeft: `5px solid ${appStatus === 'Rejected' ? '#f43f5e' : appStatus === 'Shortlisted' ? '#10b981' : scoreColor}`
                 }}
               >
                 <div style={{ flex: 1, minWidth: '280px' }}>
@@ -271,11 +274,40 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
                         Closed
                       </span>
                     )}
-                    {isApplied && (
-                      <span className="glass-pill badge-emerald" style={{ fontSize: '0.68rem' }}>
+                    {appStatus === 'Rejected' ? (
+                      <span
+                        className="glass-pill badge-rose"
+                        style={{
+                          fontSize: '0.68rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: 'rgba(244, 63, 94, 0.2)',
+                          border: '1px solid #f43f5e',
+                          color: '#fda4af'
+                        }}
+                      >
+                        <XCircle size={11} color="#f43f5e" /> Application Rejected
+                      </span>
+                    ) : appStatus === 'Shortlisted' ? (
+                      <span
+                        className="glass-pill badge-emerald"
+                        style={{
+                          fontSize: '0.68rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          border: '1px solid #10b981'
+                        }}
+                      >
+                        <CheckCircle2 size={11} /> Shortlisted
+                      </span>
+                    ) : isApplied ? (
+                      <span className="glass-pill badge-blue" style={{ fontSize: '0.68rem' }}>
                         Applied
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   <div style={{ display: 'flex', gap: '14px', marginTop: '6px', fontSize: '0.82rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
@@ -299,6 +331,28 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
                       </span>
                     ))}
                   </div>
+
+                  {/* On-Card Recruiter Diagnostic Callout when Rejected */}
+                  {appStatus === 'Rejected' && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '10px 14px',
+                      background: 'rgba(244, 63, 94, 0.08)',
+                      border: '1px solid rgba(244, 63, 94, 0.3)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px'
+                    }}>
+                      <AlertCircle size={16} color="#f43f5e" style={{ flexShrink: 0, marginTop: '2px' }} />
+                      <div style={{ fontSize: '0.8rem', color: '#fca5a5' }}>
+                        <strong>Recruiter Diagnostic Feedback:</strong> "{appRecord.rejectionReason || 'Position filled by higher-scoring verified candidate.'}"
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                          Diagnostic logged into your placement gap analysis. Check prescriptive courses to raise your readiness.
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Score Ring & Action Button */}
@@ -338,13 +392,43 @@ export default function StudentDashboard({ onOpenAssessment, onOpenInternship })
                       >
                         🔒 Applications Closed
                       </button>
+                    ) : appStatus === 'Rejected' ? (
+                      <button
+                        onClick={() => setActiveTab('applications')}
+                        className="btn btn-secondary"
+                        style={{
+                          fontSize: '0.8rem',
+                          padding: '8px 14px',
+                          borderColor: 'rgba(244, 63, 94, 0.5)',
+                          background: 'rgba(244, 63, 94, 0.12)',
+                          color: '#fda4af',
+                          cursor: 'pointer'
+                        }}
+                        title="View recruiter feedback loop in My Applications"
+                      >
+                        <XCircle size={14} color="#f43f5e" /> Rejected • View Feedback
+                      </button>
+                    ) : appStatus === 'Shortlisted' ? (
+                      <button
+                        onClick={() => setActiveTab('applications')}
+                        className="btn btn-primary"
+                        style={{
+                          fontSize: '0.8rem',
+                          padding: '8px 14px',
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          borderColor: '#10b981',
+                          color: '#6ee7b7'
+                        }}
+                      >
+                        <CheckCircle2 size={14} color="#10b981" /> Shortlisted for Interview
+                      </button>
                     ) : isApplied ? (
                       <button
                         disabled
                         className="btn btn-secondary"
                         style={{ fontSize: '0.8rem', padding: '8px 16px', opacity: 0.85, cursor: 'default' }}
                       >
-                        <CheckCircle2 size={14} color="#10b981" /> Registered / Applied
+                        <CheckCircle2 size={14} color="#38bdf8" /> Registered / Applied
                       </button>
                     ) : (
                       <button

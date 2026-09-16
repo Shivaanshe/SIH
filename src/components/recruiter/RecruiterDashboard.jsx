@@ -309,6 +309,7 @@ export default function RecruiterDashboard() {
         onClose={() => setCandidateForReject(null)}
         candidate={candidateForReject}
         postingId={activePosting?.id}
+        posting={activePosting}
       />
     </div>
   );
