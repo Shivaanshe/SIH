@@ -17,13 +17,13 @@ import { computeCurriculumGapRadar, computeGapAnalysis } from '../engine/gapAnal
 const DataContext = createContext();
 
 export function DataProvider({ children }) {
-  const { domainPack, addNotification } = useApp();
+  const { domainPack, addNotification, currentUser, role } = useApp();
 
   const [students, setStudents] = useState(seedStudents);
   const [postings, setPostings] = useState(seedPostings);
   const [institutions] = useState(seedInstitutions);
 
-  // New official feature datasets
+  // Official collaboration, FDP, learning & internship datasets
   const [fdpPrograms, setFdpPrograms] = useState(seedFdpPrograms);
   const [collaborationItems, setCollaborationItems] = useState(seedCollaborationItems);
   const [learningPrograms, setLearningPrograms] = useState(seedLearningPrograms);
@@ -52,7 +52,6 @@ export function DataProvider({ children }) {
             counts: data.counts || { students: 0, jobs: 0, skills: 0 }
           });
 
-          // If database already contains data, fetch live records
           if (data.hasData) {
             setDataSource('api');
             const [jobsRes, studentsRes] = await Promise.allSettled([
@@ -78,7 +77,6 @@ export function DataProvider({ children }) {
           setDbStatus(prev => ({ ...prev, checked: true, isOffline: true }));
         }
       } catch (err) {
-        // Backend offline — keep using local fallback seed data safely
         setDbStatus({
           checked: true,
           hasData: false,
@@ -113,10 +111,64 @@ export function DataProvider({ children }) {
     }
   };
 
-  // Active student based on domain pack
+  // Synchronize authenticated student user with local student records
+  useEffect(() => {
+    if (role === 'student' && currentUser?.email) {
+      const cleanEmail = currentUser.email.toLowerCase().trim();
+      setStudents(prev => {
+        const existingIndex = prev.findIndex(s => s.email?.toLowerCase().trim() === cleanEmail);
+        if (existingIndex >= 0) {
+          // Update name if changed
+          if (currentUser.name && prev[existingIndex].name !== currentUser.name) {
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], name: currentUser.name };
+            return updated;
+          }
+          return prev;
+        }
+
+        // Initialize personal profile for newly logged-in/registered student (e.g. Dhruv)
+        const nameCode = (currentUser.name || 'STUD').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4) || 'STUD';
+        const newStudent = {
+          id: currentUser.id || `stud-${Date.now()}`,
+          name: currentUser.name || 'Student',
+          email: currentUser.email,
+          degree: domainPack === 'ayush'
+            ? 'Bachelor of Ayurvedic Medicine & Surgery (BAMS)'
+            : 'B.Tech in Computer Science & Engineering',
+          year: 'Final Year (Batch 2026)',
+          institutionId: domainPack === 'ayush' ? 'inst-aiia-01' : 'inst-dtu-04',
+          institutionName: domainPack === 'ayush'
+            ? 'All India Institute of Ayurveda (AIIA), New Delhi'
+            : 'Delhi Technological University (DTU), New Delhi',
+          apaarId: `IN-APAAR-2026-${nameCode}-${Math.floor(1000 + Math.random() * 9000)}`,
+          verificationConfidence: 0.85,
+          domainPack: domainPack,
+          avatar: currentUser.avatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`,
+          skills: [],
+          appliedPostings: [],
+          projects: [],
+          uploadedResume: null
+        };
+        return [newStudent, ...prev];
+      });
+    }
+  }, [role, currentUser, domainPack]);
+
+  // Active student based on authenticated student user or domain pack
   const activeStudent = useMemo(() => {
+    if (role === 'student' && currentUser?.email) {
+      const cleanEmail = currentUser.email.toLowerCase().trim();
+      const userStudent = students.find(s => s.email?.toLowerCase().trim() === cleanEmail);
+      if (userStudent) return userStudent;
+
+      if (currentUser.name) {
+        const nameMatch = students.find(s => s.name?.toLowerCase().trim() === currentUser.name.toLowerCase().trim());
+        if (nameMatch) return nameMatch;
+      }
+    }
     return students.find(s => s.domainPack === domainPack) || students[0];
-  }, [students, domainPack]);
+  }, [students, domainPack, role, currentUser]);
 
   // Active postings filtered by domain pack
   const activePostings = useMemo(() => {

@@ -141,47 +141,92 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Center: Role Switcher (Crucial for SIH Evaluators) */}
-        <nav aria-label="Role Navigation" style={{
-          display: 'flex',
-          alignItems: 'center',
-          background: 'rgba(255, 255, 255, 0.04)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '4px'
-        }}>
-          <button
-            onClick={() => setRole('student')}
-            className={`btn ${role === 'student' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.8rem', padding: '6px 14px', borderRadius: 'var(--radius-md)' }}
-          >
-            <GraduationCap size={15} /> Student ({activeStudent?.name.split(' ')[0]})
-          </button>
+        {/* Center: Authorized Role Workspace Indicator (Strict RBAC Enforced) */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {(currentUser?.role || role) === 'student' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              background: 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '6px 16px',
+              boxShadow: '0 0 14px rgba(16, 185, 129, 0.15)'
+            }}>
+              <GraduationCap size={16} color="#10b981" />
+              <span style={{ fontSize: '0.82rem', color: '#f1f5f9' }}>
+                Student Workspace: <strong style={{ color: '#34d399' }}>{activeStudent?.name || currentUser?.name || 'Student'}</strong>
+              </span>
+              <span className="glass-pill badge-emerald" style={{ fontSize: '0.66rem', padding: '2px 8px' }}>
+                Verified Student
+              </span>
+            </div>
+          )}
 
-          <button
-            onClick={() => setRole('spoc')}
-            className={`btn ${role === 'spoc' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.8rem', padding: '6px 14px', borderRadius: 'var(--radius-md)' }}
-          >
-            <Building2 size={15} /> Academia SPOC
-          </button>
+          {(currentUser?.role || role) === 'recruiter' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              background: 'rgba(251, 191, 36, 0.12)',
+              border: '1px solid rgba(251, 191, 36, 0.35)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '6px 16px',
+              boxShadow: '0 0 14px rgba(251, 191, 36, 0.15)'
+            }}>
+              <Briefcase size={16} color="#fbbf24" />
+              <span style={{ fontSize: '0.82rem', color: '#f1f5f9' }}>
+                Industry / HR Recruiter Portal: <strong style={{ color: '#fbbf24' }}>{currentUser?.name || "Dabur Talent Acquisition"}</strong>
+              </span>
+              <span className="glass-pill badge-amber" style={{ fontSize: '0.66rem', padding: '2px 8px' }}>
+                Hiring Partner
+              </span>
+            </div>
+          )}
 
-          <button
-            onClick={() => setRole('recruiter')}
-            className={`btn ${role === 'recruiter' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.8rem', padding: '6px 14px', borderRadius: 'var(--radius-md)' }}
-          >
-            <Briefcase size={15} /> Industry / HR
-          </button>
+          {(currentUser?.role || role) === 'spoc' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '6px 16px',
+              boxShadow: '0 0 14px rgba(56, 189, 248, 0.15)'
+            }}>
+              <Building2 size={16} color="#38bdf8" />
+              <span style={{ fontSize: '0.82rem', color: '#f1f5f9' }}>
+                Academia SPOC Command: <strong style={{ color: '#38bdf8' }}>{currentUser?.name || "Dr. Arvind Verma (AIIA)"}</strong>
+              </span>
+              <span className="glass-pill badge-blue" style={{ fontSize: '0.66rem', padding: '2px 8px' }}>
+                Faculty Head
+              </span>
+            </div>
+          )}
 
-          <button
-            onClick={() => setRole('ministry')}
-            className={`btn ${role === 'ministry' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.8rem', padding: '6px 14px', borderRadius: 'var(--radius-md)' }}
-          >
-            <ShieldCheck size={15} /> Ministry Admin
-          </button>
-        </nav>
+          {(currentUser?.role || role) === 'ministry' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              background: 'rgba(168, 85, 247, 0.12)',
+              border: '1px solid rgba(168, 85, 247, 0.35)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '6px 16px',
+              boxShadow: '0 0 14px rgba(168, 85, 247, 0.15)'
+            }}>
+              <ShieldCheck size={16} color="#a855f7" />
+              <span style={{ fontSize: '0.82rem', color: '#f1f5f9' }}>
+                Ministry Apex Council: <strong style={{ color: '#c084fc' }}>National Skill Directorate</strong>
+              </span>
+              <span className="glass-pill badge-purple" style={{ fontSize: '0.66rem', padding: '2px 8px' }}>
+                Apex Oversight
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* Right Controls: Domain Switcher & Theme */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

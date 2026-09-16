@@ -27,8 +27,11 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const { role, domainPack, isAuthenticated } = useApp();
+  const { role, domainPack, isAuthenticated, currentUser } = useApp();
   const { activeStudent, postings } = useData();
+
+  // Enforce strict Role-Based Access Control (RBAC)
+  const currentRole = currentUser?.role || role;
 
   // Navigation tab state: 'dashboard', 'collaboration', 'learning'
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -73,16 +76,16 @@ export default function App() {
                 </span>
               </div>
               <h2 style={{ fontSize: '1.18rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                {role === 'student' && `Student Employability & Skill Intelligence: ${activeStudent?.name}`}
-                {role === 'spoc' && "Academia SPOC Command Center & Curriculum Radar"}
-                {role === 'recruiter' && "Industry Talent Acquisition & Candidate Match Funnel"}
-                {role === 'ministry' && "National Skill Directorate — Apex Institutional Oversight"}
+                {currentRole === 'student' && `Student Employability & Skill Intelligence: ${activeStudent?.name || currentUser?.name || 'Student'}`}
+                {currentRole === 'spoc' && "Academia SPOC Command Center & Curriculum Radar"}
+                {currentRole === 'recruiter' && "Industry Talent Acquisition & Candidate Match Funnel"}
+                {currentRole === 'ministry' && "National Skill Directorate — Apex Institutional Oversight"}
               </h2>
             </div>
 
             {/* Quick Action Buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {role === 'student' && (
+              {currentRole === 'student' && (
                 <>
                   <button
                     onClick={() => setIsAssessmentModalOpen(true)}
@@ -173,14 +176,14 @@ export default function App() {
           </div>
         </section>
 
-        {/* Tab Content Display */}
+        {/* Tab Content Display (Strictly Enforced by RBAC) */}
         <section>
           {activeTab === 'dashboard' && (
             <>
-              {role === 'student' && <StudentDashboard onOpenAssessment={() => setIsAssessmentModalOpen(true)} onOpenInternship={() => setIsInternshipModalOpen(true)} />}
-              {role === 'spoc' && <SpocDashboard />}
-              {role === 'recruiter' && <RecruiterDashboard />}
-              {role === 'ministry' && <MinistryDashboard />}
+              {currentRole === 'student' && <StudentDashboard onOpenAssessment={() => setIsAssessmentModalOpen(true)} onOpenInternship={() => setIsInternshipModalOpen(true)} />}
+              {currentRole === 'spoc' && <SpocDashboard />}
+              {currentRole === 'recruiter' && <RecruiterDashboard />}
+              {currentRole === 'ministry' && <MinistryDashboard />}
             </>
           )}
 
