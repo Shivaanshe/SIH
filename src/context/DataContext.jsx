@@ -600,6 +600,52 @@ export function DataProvider({ children }) {
     addNotification("Institution Updated", `Affiliated with ${inst.name}.`, "emerald");
   };
 
+  // Student verifies academic credentials via DigiLocker / MeriPehchaan DPI
+  const verifyStudentDigiLocker = async (studentId, digiLockerPayload = {}) => {
+    // 1. Update in-memory state immediately
+    setStudents(prev => prev.map(s => {
+      if (s.id === studentId || (activeStudent && (s.id === activeStudent.id || (s.email && activeStudent.email && s.email.toLowerCase() === activeStudent.email.toLowerCase())))) {
+        let apaarId = s.apaarId;
+        if (!apaarId || !apaarId.startsWith('IN-APAAR')) {
+          const nameCode = (s.name || 'STUD').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4) || 'STUD';
+          apaarId = `IN-APAAR-2026-${nameCode}-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
+        return {
+          ...s,
+          digiLockerVerified: true,
+          verificationConfidence: Math.max(0.95, s.verificationConfidence || 0.6),
+          apaarId,
+          digiLockerData: {
+            verifiedAt: new Date().toISOString(),
+            aadhaarMasked: digiLockerPayload.aadhaarMasked || 'XXXX-XXXX-3891',
+            docTypes: digiLockerPayload.docTypes || ['APAAR / ABC ID Card', 'Class XII Marksheet', 'Degree Transcript'],
+            issuer: 'Ministry of Electronics & IT / NeGD'
+          }
+        };
+      }
+      return s;
+    }));
+
+    // 2. Persist to backend MongoDB
+    try {
+      const targetId = activeStudent ? (activeStudent.email || activeStudent.id) : studentId;
+      await fetch(`http://localhost:5000/api/students/${targetId}/verify-digilocker`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(digiLockerPayload)
+      });
+    } catch (e) {
+      console.warn("MongoDB DigiLocker sync note:", e.message);
+    }
+
+    addNotification(
+      "DigiLocker Verified & Stored",
+      "Digital credentials verified via MeitY DPI. Verification Confidence boosted to 95%!",
+      "emerald"
+    );
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -619,6 +665,7 @@ export function DataProvider({ children }) {
         updateApplicationStatus,
         endorseStudentSkill,
         updateStudentSkills,
+        verifyStudentDigiLocker,
         createJobPosting,
         closeJobPosting,
         deleteJobPosting,

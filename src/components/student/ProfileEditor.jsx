@@ -16,11 +16,13 @@ import {
   Layers
 } from 'lucide-react';
 import ResumeUploadModal from './ResumeUploadModal';
+import DigiLockerModal from '../common/DigiLockerModal';
 
 export default function ProfileEditor() {
   const { activeStudent, updateStudentSkills, activeTaxonomy, institutions, updateStudentInstitution } = useData();
   const { domainPack, addNotification } = useApp();
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [isDigiLockerModalOpen, setIsDigiLockerModalOpen] = useState(false);
   const [newSkillName, setNewSkillName] = useState('');
   const [newSkillLevel, setNewSkillLevel] = useState(3);
   const [isAddingOpen, setIsAddingOpen] = useState(false);
@@ -139,13 +141,37 @@ export default function ProfileEditor() {
 
         {/* DPI Digital Credentials & Confidence */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <span className="glass-pill badge-blue" title="One Nation, One Student ID (Academic Bank of Credits)">
               APAAR: {activeStudent.apaarId}
             </span>
-            <span className="glass-pill badge-emerald" title="DigiLocker Integrated">
-              <CheckCircle2 size={13} /> DigiLocker
-            </span>
+            {activeStudent.digiLockerVerified ? (
+              <button
+                onClick={() => setIsDigiLockerModalOpen(true)}
+                className="glass-pill badge-emerald"
+                style={{ cursor: 'pointer', border: '1px solid #10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                title="Click to view verified DigiLocker credentials"
+              >
+                <CheckCircle2 size={13} /> DigiLocker Verified
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsDigiLockerModalOpen(true)}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.74rem',
+                  padding: '4px 12px',
+                  background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+                  borderColor: '#38bdf8',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+                title="Connect DigiLocker to verify credentials and boost confidence"
+              >
+                <ShieldCheck size={13} /> Connect DigiLocker
+              </button>
+            )}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Verification Confidence Index: <strong style={{ color: '#34d399' }}>{Math.round((activeStudent.verificationConfidence || 0.6) * 100)}%</strong>
@@ -199,6 +225,49 @@ export default function ProfileEditor() {
               style={{ fontSize: '0.76rem', padding: '6px 12px' }}
             >
               <Upload size={13} /> Upload New PDF / Inspect
+            </button>
+          </div>
+        </div>
+
+        {/* DigiLocker Verified Academic Credentials Card */}
+        <div className="glass-panel" style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', borderLeft: `4px solid ${activeStudent.digiLockerVerified ? '#10b981' : '#f59e0b'}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '8px',
+              background: activeStudent.digiLockerVerified ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+              border: `1px solid ${activeStudent.digiLockerVerified ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <ShieldCheck size={22} color={activeStudent.digiLockerVerified ? '#10b981' : '#fbbf24'} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <strong style={{ fontSize: '0.9rem' }}>
+                  {activeStudent.digiLockerVerified ? 'DigiLocker DPI Verified Credentials' : 'DigiLocker Academic Credential Sync'}
+                </strong>
+                <span className={`glass-pill ${activeStudent.digiLockerVerified ? 'badge-emerald' : 'badge-amber'}`} style={{ fontSize: '0.66rem' }}>
+                  {activeStudent.digiLockerVerified ? '● National DPI Verified' : '○ Pending Verification'}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                {activeStudent.digiLockerVerified
+                  ? `MeitY DPI • APAAR ID ${activeStudent.apaarId} • University Degree Transcript Verified in MongoDB`
+                  : 'Link Aadhaar/APAAR to boost verification confidence to 95% and raise recruiter ranking'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setIsDigiLockerModalOpen(true)}
+              className={`btn ${activeStudent.digiLockerVerified ? 'btn-secondary' : 'btn-primary'}`}
+              style={{ fontSize: '0.76rem', padding: '6px 14px', background: activeStudent.digiLockerVerified ? undefined : '#0284c7' }}
+            >
+              <ShieldCheck size={13} /> {activeStudent.digiLockerVerified ? 'View Verified Vault' : 'Verify with DigiLocker'}
             </button>
           </div>
         </div>
@@ -405,6 +474,12 @@ export default function ProfileEditor() {
       <ResumeUploadModal
         isOpen={isResumeModalOpen}
         onClose={() => setIsResumeModalOpen(false)}
+      />
+
+      <DigiLockerModal
+        isOpen={isDigiLockerModalOpen}
+        onClose={() => setIsDigiLockerModalOpen(false)}
+        student={activeStudent}
       />
     </div>
   );

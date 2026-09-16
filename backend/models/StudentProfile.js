@@ -68,6 +68,13 @@ const studentProfileSchema = new mongoose.Schema({
     max: 1,
     default: 0.55
   },
+  digiLockerData: {
+    verifiedAt: { type: String },
+    aadhaarMasked: { type: String, default: 'XXXX-XXXX-3891' },
+    docTypes: [{ type: String }],
+    issuer: { type: String, default: 'Ministry of Electronics & IT / NeGD' },
+    certificateUri: { type: String }
+  },
   skills: [
     {
       skillId: { type: String, required: true },

@@ -20,6 +20,7 @@ import {
   LogIn,
   RotateCcw
 } from 'lucide-react';
+import DigiLockerModal from '../common/DigiLockerModal';
 
 const rolesList = [
   {
@@ -62,6 +63,7 @@ export default function LoginPage() {
 
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
   const [selectedRole, setSelectedRole] = useState('student');
+  const [isDigiLockerLoginOpen, setIsDigiLockerLoginOpen] = useState(false);
 
   // Sign In credentials
   const [email, setEmail] = useState('shiv@123');
@@ -510,6 +512,49 @@ export default function LoginPage() {
                     </button>
                   </div>
 
+                  {/* Student DigiLocker National SSO Option */}
+                  {selectedRole === 'student' && (
+                    <>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        margin: '18px 0 14px 0'
+                      }}>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }} />
+                        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          or single sign-on (DPI)
+                        </span>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }} />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsDigiLockerLoginOpen(true)}
+                        style={{
+                          width: '100%',
+                          padding: '12px 18px',
+                          borderRadius: '8px',
+                          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(3, 105, 161, 0.15))',
+                          border: '1px solid rgba(56, 189, 248, 0.4)',
+                          color: '#e0f2fe',
+                          fontSize: '0.88rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 4px 14px rgba(2, 132, 199, 0.18)'
+                        }}
+                      >
+                        <span style={{ fontSize: '1.1rem' }}>🇮🇳</span>
+                        <span>Sign in with DigiLocker / MeriPehchaan (National SSO)</span>
+                      </button>
+                    </>
+                  )}
+
                   <div style={{ textAlign: 'center', marginTop: '14px', fontSize: '0.78rem', color: '#94a3b8' }}>
                     New to KaushalSetu?{' '}
                     <button
@@ -704,6 +749,12 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      <DigiLockerModal
+        isOpen={isDigiLockerLoginOpen}
+        onClose={() => setIsDigiLockerLoginOpen(false)}
+        isLoginMode={true}
+      />
     </div>
   );
 }
