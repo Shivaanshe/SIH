@@ -33,18 +33,36 @@ export default function RecruiterDashboard() {
   const rankedCandidates = useMemo(() => {
     if (!activePosting) return [];
 
-    const domainStudents = students.filter(s => s.domainPack === domainPack);
+    // Include any student who has submitted an application to this posting, plus domain pool
+    const relevantStudents = students.filter(stud => {
+      const hasApplied = (stud.appliedPostings || []).some(a => a.postingId === activePosting.id);
+      return hasApplied || stud.domainPack === domainPack || !stud.domainPack;
+    });
 
-    return domainStudents.map(stud => {
-      const matchResult = calculateMatchScore(stud, activePosting);
-      const appRecord = (stud.appliedPostings || []).find(a => a.postingId === activePosting.id);
+    return relevantStudents.map(stud => {
+      // Sanitize name if previously saved as Authorized Stakeholder
+      let displayName = stud.name;
+      if (!displayName || displayName === 'Authorized Stakeholder') {
+        const raw = stud.email ? stud.email.split('@')[0].replace(/[._0-9]/g, ' ').trim() : 'Dhruv';
+        displayName = raw ? raw.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : 'Dhruv';
+      }
+      const cleanStudent = { ...stud, name: displayName };
+
+      const matchResult = calculateMatchScore(cleanStudent, activePosting);
+      const appRecord = (cleanStudent.appliedPostings || []).find(a => a.postingId === activePosting.id);
       return {
-        student: stud,
+        student: cleanStudent,
         matchResult,
         status: appRecord?.status || 'Eligible Pool',
         rejectionReason: appRecord?.rejectionReason
       };
-    }).sort((a, b) => b.matchResult.matchPercent - a.matchResult.matchPercent);
+    }).sort((a, b) => {
+      // Priority: Shortlisted > Applied > Eligible Pool
+      const aPriority = a.status === 'Shortlisted' ? 2 : a.status === 'Applied' ? 1 : 0;
+      const bPriority = b.status === 'Shortlisted' ? 2 : b.status === 'Applied' ? 1 : 0;
+      if (aPriority !== bPriority) return bPriority - aPriority;
+      return b.matchResult.matchPercent - a.matchResult.matchPercent;
+    });
   }, [students, activePosting, domainPack]);
 
   const shortlistedCount = rankedCandidates.filter(c => c.status === 'Shortlisted').length;

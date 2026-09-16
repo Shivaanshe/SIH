@@ -19,7 +19,26 @@ const DataContext = createContext();
 export function DataProvider({ children }) {
   const { domainPack, addNotification, currentUser, role } = useApp();
 
-  const [students, setStudents] = useState(seedStudents);
+  const [students, setStudents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kaushal_all_students');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Sanitize any Authorized Stakeholder names
+          return parsed.map(s => {
+            if (!s.name || s.name === 'Authorized Stakeholder') {
+              const prefix = s.email ? s.email.split('@')[0].replace(/[._0-9]/g, ' ').trim() : 'Dhruv';
+              const clean = prefix ? prefix.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : 'Dhruv';
+              return { ...s, name: clean };
+            }
+            return s;
+          });
+        }
+      }
+    } catch (e) {}
+    return seedStudents;
+  });
   const [postings, setPostings] = useState(seedPostings);
   const [institutions, setInstitutions] = useState(seedInstitutions);
   const [directives, setDirectives] = useState([
@@ -78,7 +97,7 @@ export function DataProvider({ children }) {
             setDataSource('api');
             const [jobsRes, studentsRes] = await Promise.allSettled([
               fetch('http://localhost:5000/api/jobs'),
-              fetch('http://localhost:5000/api/spoc/cohort')
+              fetch('http://localhost:5000/api/students')
             ]);
 
             if (jobsRes.status === 'fulfilled' && jobsRes.value.ok) {
@@ -88,11 +107,43 @@ export function DataProvider({ children }) {
               }
             }
 
+            let studsData = null;
             if (studentsRes.status === 'fulfilled' && studentsRes.value.ok) {
-              const studsData = await studentsRes.value.json();
-              if (studsData.students && studsData.students.length > 0) {
-                setStudents(studsData.students);
-              }
+              try {
+                studsData = await studentsRes.value.json();
+              } catch (e) {}
+            }
+            if (!studsData) {
+              try {
+                const cohortRes = await fetch('http://localhost:5000/api/spoc/cohort');
+                if (cohortRes.ok) studsData = await cohortRes.json();
+              } catch (e) {}
+            }
+
+            if (studsData && studsData.students && studsData.students.length > 0) {
+              setStudents(prev => {
+                const sanitizedApiStudents = studsData.students.map(s => {
+                  let name = s.name;
+                  if (!name || name === 'Authorized Stakeholder') {
+                    const prefix = s.email ? s.email.split('@')[0].replace(/[._0-9]/g, ' ').trim() : 'Dhruv';
+                    name = prefix ? prefix.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : 'Dhruv';
+                  }
+                  return { ...s, name };
+                });
+
+                const merged = [...sanitizedApiStudents];
+                prev.forEach(p => {
+                  if (!merged.some(m => (m.email && p.email && m.email.toLowerCase() === p.email.toLowerCase()) || m.id === p.id)) {
+                    let name = p.name;
+                    if (!name || name === 'Authorized Stakeholder') {
+                      const prefix = p.email ? p.email.split('@')[0].replace(/[._0-9]/g, ' ').trim() : 'Dhruv';
+                      name = prefix ? prefix.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : 'Dhruv';
+                    }
+                    merged.push({ ...p, name });
+                  }
+                });
+                return merged;
+              });
             }
           }
         } else {
@@ -110,6 +161,15 @@ export function DataProvider({ children }) {
 
     checkStatus();
   }, []);
+
+  // Persist all live students to localStorage so HR & SPOC see all registrations across sessions
+  useEffect(() => {
+    if (students && students.length > 0) {
+      try {
+        localStorage.setItem('kaushal_all_students', JSON.stringify(students));
+      } catch (e) {}
+    }
+  }, [students]);
 
   // Action: Seed database when empty
   const seedDatabaseNow = async () => {
@@ -139,21 +199,26 @@ export function DataProvider({ children }) {
       const cleanEmail = currentUser.email.toLowerCase().trim();
       setStudents(prev => {
         const existingIndex = prev.findIndex(s => s.email?.toLowerCase().trim() === cleanEmail);
+        let studentName = currentUser.name;
+        if (!studentName || studentName === 'Authorized Stakeholder') {
+          const raw = cleanEmail.split('@')[0].replace(/[._0-9]/g, ' ').trim();
+          studentName = raw ? raw.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : 'Dhruv';
+        }
+
         if (existingIndex >= 0) {
-          // Update name if changed
-          if (currentUser.name && prev[existingIndex].name !== currentUser.name) {
+          if (prev[existingIndex].name !== studentName || prev[existingIndex].name === 'Authorized Stakeholder') {
             const updated = [...prev];
-            updated[existingIndex] = { ...updated[existingIndex], name: currentUser.name };
+            updated[existingIndex] = { ...updated[existingIndex], name: studentName };
             return updated;
           }
           return prev;
         }
 
         // Initialize personal profile for newly logged-in/registered student (e.g. Dhruv)
-        const nameCode = (currentUser.name || 'STUD').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4) || 'STUD';
+        const nameCode = (studentName || 'STUD').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4) || 'STUD';
         const newStudent = {
           id: currentUser.id || `stud-${Date.now()}`,
-          name: currentUser.name || 'Student',
+          name: studentName,
           email: currentUser.email,
           degree: domainPack === 'ayush'
             ? 'Bachelor of Ayurvedic Medicine & Surgery (BAMS)'
@@ -262,6 +327,18 @@ export function DataProvider({ children }) {
       return p;
     }));
 
+    // Persist to backend MongoDB if online
+    fetch('http://localhost:5000/api/students/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: activeStudent.id,
+        postingId,
+        matchScore: score.matchPercent,
+        gapReport: computeGapAnalysis(activeStudent, post, domainPack)
+      })
+    }).catch(err => console.warn("Backend application sync note:", err.message));
+
     addNotification("Application Submitted", `Successfully applied to ${post?.title} (${score.matchPercent}% Match).`, "emerald");
   };
 
@@ -284,6 +361,21 @@ export function DataProvider({ children }) {
       }
       return s;
     }));
+
+    // Sync to backend MongoDB if online
+    if (newStatus === "Rejected") {
+      fetch('http://localhost:5000/api/recruiter/applications/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, postingId, rejectionReason })
+      }).catch(err => console.warn("Backend reject sync note:", err.message));
+    } else {
+      fetch('http://localhost:5000/api/recruiter/applications/status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, postingId, newStatus })
+      }).catch(err => console.warn("Backend status sync note:", err.message));
+    }
 
     addNotification(
       `Candidate ${newStatus}`,

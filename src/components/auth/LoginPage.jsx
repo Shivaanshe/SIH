@@ -146,7 +146,8 @@ export default function LoginPage() {
         name: cleanName,
         email: cleanEmail,
         password: cleanPass,
-        role: selectedRole
+        role: selectedRole,
+        domainPack
       });
 
       if (!res.success) {

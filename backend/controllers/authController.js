@@ -69,12 +69,12 @@ export async function registerUser(req, res, next) {
       });
     }
 
-    // 5. Check if user already exists in MongoDB
+    // 5. Enforce unique primary key constraint on email
     const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'An account with this email is already registered in MongoDB. Please sign in.'
+        message: 'This email is already registered in the system. Please sign in or use a different email address.'
       });
     }
 
@@ -93,16 +93,28 @@ export async function registerUser(req, res, next) {
     // 8. If student role, create associated StudentProfile in MongoDB
     if (assignedRole === 'student') {
       try {
+        const studentDomain = req.body.domainPack || 'tech';
+        const nameCode = cleanName.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4) || 'STUD';
         await StudentProfile.create({
           userId: newUser._id,
           id: `stud-${Date.now()}`,
-          name: newUser.name,
-          email: newUser.email,
-          degree: 'Bachelor of Technology in Computer Science',
-          institutionName: 'Lovely Professional University',
+          name: cleanName,
+          email: cleanEmail,
+          domainPack: studentDomain,
+          degree: studentDomain === 'ayush'
+            ? 'Bachelor of Ayurvedic Medicine & Surgery (BAMS)'
+            : 'Bachelor of Technology in Computer Science & Engineering',
+          institutionName: studentDomain === 'ayush'
+            ? 'All India Institute of Ayurveda (AIIA), New Delhi'
+            : 'Delhi Technological University (DTU), New Delhi',
+          institutionId: studentDomain === 'ayush' ? 'inst-aiia-01' : 'inst-dtu-04',
+          apaarId: `IN-APAAR-2026-${nameCode}-${Math.floor(1000 + Math.random() * 9000)}`,
           cgpa: 8.5,
+          digiLockerVerified: true,
+          verificationConfidence: 0.85,
           skills: [],
-          projects: []
+          projects: [],
+          appliedPostings: []
         });
       } catch (profErr) {
         console.warn('StudentProfile creation note:', profErr.message);
@@ -214,7 +226,7 @@ export async function loginUser(req, res, next) {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.'
+        message: 'No account found with this email. Please create a new account (Sign Up) first.'
       });
     }
 
@@ -222,7 +234,7 @@ export async function loginUser(req, res, next) {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.'
+        message: 'Incorrect password. Please verify your credentials.'
       });
     }
 

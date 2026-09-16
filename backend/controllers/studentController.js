@@ -5,6 +5,32 @@ import { SkillTaxonomy } from '../models/SkillTaxonomy.js';
 
 /**
  * ============================================================================
+ * FUNCTION: getAllStudents
+ * ============================================================================
+ * Fetches all student profiles registered in MongoDB
+ * HTTP METHOD & ROUTE: GET /api/students
+ * ACCESS: Public / Authenticated
+ */
+export async function getAllStudents(req, res, next) {
+  try {
+    const { domainPack, institutionId } = req.query;
+    const filter = {};
+    if (domainPack) filter.domainPack = domainPack;
+    if (institutionId) filter.institutionId = institutionId;
+
+    const students = await StudentProfile.find(filter).sort({ createdAt: -1 });
+    res.status(200).json({
+      success: true,
+      count: students.length,
+      students
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * ============================================================================
  * FUNCTION: getStudentProfile
  * ============================================================================
  * WHAT IT NEEDS TO DO:

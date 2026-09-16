@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+  getAllStudents,
   getStudentProfile,
   updateStudentProfile,
   uploadResumeNLP,
@@ -9,6 +10,7 @@ import {
 
 const router = express.Router();
 
+router.get('/', getAllStudents);
 router.get('/:id', getStudentProfile);
 router.put('/:id', updateStudentProfile);
 router.post('/parse-resume', uploadResumeNLP);

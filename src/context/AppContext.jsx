@@ -168,7 +168,7 @@ export function AppProvider({ children }) {
   /**
    * Register function: Cleans inputs, validates name, email, pass only, and stores in MongoDB
    */
-  const register = async ({ name, email, password, role = 'student' }) => {
+  const register = async ({ name, email, password, role = 'student', domainPack = 'ayush' }) => {
     const cleanName = (name || '').trim();
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPassword = (password || '').trim();
@@ -197,7 +197,8 @@ export function AppProvider({ children }) {
           name: cleanName,
           email: cleanEmail,
           password: cleanPassword,
-          role
+          role,
+          domainPack
         })
       });
 
@@ -220,8 +221,18 @@ export function AppProvider({ children }) {
       }
     } catch (err) {
       console.warn("Backend API offline or unreachable during registration, using fallback:", err.message);
+      // Primary key check in fallback mode
+      const registeredEmails = JSON.parse(localStorage.getItem('kaushal_registered_emails') || '[]');
+      if (cleanEmail === 'shiv@123' || cleanEmail === 'hr@123' || cleanEmail === 'spoc@123' || cleanEmail === 'admin@123' || registeredEmails.includes(cleanEmail)) {
+        addNotification("Email Already Registered", "An account with this email address already exists. Please sign in or use a different email.", "rose");
+        return { success: false, message: "An account with this email address already exists. Please sign in or use a different email." };
+      }
+
+      registeredEmails.push(cleanEmail);
+      localStorage.setItem('kaushal_registered_emails', JSON.stringify(registeredEmails));
+
       const fallbackUser = {
-        id: `user-${Date.now()}`,
+        id: `user-${cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || '01'}`,
         name: cleanName,
         email: cleanEmail,
         role: role,
