@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
@@ -110,7 +112,7 @@ export function AppProvider({ children }) {
    */
   const login = async (email, password, targetRole = 'student') => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, role: targetRole })
@@ -190,7 +192,7 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/register', {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -268,7 +270,7 @@ export function AppProvider({ children }) {
    */
   const loginWithDigiLocker = async ({ aadhaarOrMobile, pin, email = 'dhruv@123', name = 'Dhruv' }) => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/digilocker-login', {
+      const res = await fetch(`${API_BASE}/api/auth/digilocker-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ aadhaarOrMobile, pin, email, name, domainPack })

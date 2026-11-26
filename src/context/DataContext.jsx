@@ -14,6 +14,8 @@ import {
 import { calculateMatchScore } from '../engine/matchingEngine';
 import { computeCurriculumGapRadar, computeGapAnalysis } from '../engine/gapAnalysis';
 
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+
 const DataContext = createContext();
 
 export function DataProvider({ children }) {
@@ -83,7 +85,7 @@ export function DataProvider({ children }) {
   useEffect(() => {
     async function checkStatus() {
       try {
-        const res = await fetch('http://localhost:5000/api/seed/status');
+        const res = await fetch(`${API_BASE}/api/seed/status`);
         if (res.ok) {
           const data = await res.json();
           setDbStatus({
@@ -96,8 +98,8 @@ export function DataProvider({ children }) {
           if (data.hasData) {
             setDataSource('api');
             const [jobsRes, studentsRes] = await Promise.allSettled([
-              fetch('http://localhost:5000/api/jobs'),
-              fetch('http://localhost:5000/api/students')
+              fetch(`${API_BASE}/api/jobs`),
+              fetch(`${API_BASE}/api/students`)
             ]);
 
             if (jobsRes.status === 'fulfilled' && jobsRes.value.ok) {
@@ -115,7 +117,7 @@ export function DataProvider({ children }) {
             }
             if (!studsData) {
               try {
-                const cohortRes = await fetch('http://localhost:5000/api/spoc/cohort');
+                const cohortRes = await fetch(`${API_BASE}/api/spoc/cohort`);
                 if (cohortRes.ok) studsData = await cohortRes.json();
               } catch (e) {}
             }
@@ -174,7 +176,7 @@ export function DataProvider({ children }) {
   // Action: Seed database when empty
   const seedDatabaseNow = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/seed', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/seed`, { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         setDbStatus({
@@ -328,7 +330,7 @@ export function DataProvider({ children }) {
     }));
 
     // Persist to backend MongoDB if online
-    fetch('http://localhost:5000/api/students/apply', {
+    fetch(`${API_BASE}/api/students/apply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -364,13 +366,13 @@ export function DataProvider({ children }) {
 
     // Sync to backend MongoDB if online
     if (newStatus === "Rejected") {
-      fetch('http://localhost:5000/api/recruiter/applications/reject', {
+      fetch(`${API_BASE}/api/recruiter/applications/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId, postingId, rejectionReason })
       }).catch(err => console.warn("Backend reject sync note:", err.message));
     } else {
-      fetch('http://localhost:5000/api/recruiter/applications/status', {
+      fetch(`${API_BASE}/api/recruiter/applications/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId, postingId, newStatus })
@@ -630,7 +632,7 @@ export function DataProvider({ children }) {
     // 2. Persist to backend MongoDB
     try {
       const targetId = activeStudent ? (activeStudent.email || activeStudent.id) : studentId;
-      await fetch(`http://localhost:5000/api/students/${targetId}/verify-digilocker`, {
+      await fetch(`${API_BASE}/api/students/${targetId}/verify-digilocker`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(digiLockerPayload)

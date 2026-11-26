@@ -23,7 +23,7 @@ const app = express();
 
 // Global Middlewares
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: [process.env.CLIENT_URL?.replace(/\/$/, ''), 'http://localhost:5173'].filter(Boolean),
   credentials: true
 }));
 app.use(express.json());
